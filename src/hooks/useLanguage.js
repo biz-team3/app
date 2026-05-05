@@ -1,0 +1,2 @@
+export { useLanguage } from "../contexts/LanguageContext.jsx";
+
