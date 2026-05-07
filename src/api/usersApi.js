@@ -34,14 +34,19 @@ function normalizeUserPayload(payload) {
     throw Object.assign(new Error("accountVisibility must be PUBLIC or PRIVATE"), { status: 400 });
   }
 
-  return {
+  const nextPayload = {
     username,
     name: payload.name?.trim() || username,
     bio: payload.bio || "",
     website: payload.website || "",
     profileImageUrl: payload.profileImageUrl || "",
+    profileImageUrls: payload.profileImageUrl ? [payload.profileImageUrl] : [],
     accountVisibility,
   };
+  if (payload.password?.trim()) {
+    nextPayload.password = payload.password;
+  }
+  return nextPayload;
 }
 
 export async function getUsers({ page = 0, size = 30, query = "" } = {}) {
