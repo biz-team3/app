@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Bell, Camera, Home, LogOut, Menu, MoonStar, PlusCircle, Settings, User } from "lucide-react";
+import { Bell, Camera, Home, LogOut, Menu, MoonStar, PlusCircle, Settings, User, Users } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useLanguage } from "../../hooks/useLanguage.js";
@@ -17,6 +17,7 @@ export function Sidebar({ onCreate, onNotifications, notificationBadgeCount = 0,
     { label: t("notifications"), icon: Bell, action: onNotifications, badge: notificationBadgeCount },
     { label: t("create"), icon: PlusCircle, action: onCreate },
     { label: t("profile"), icon: User, path: "/profile" },
+    { label: t("users"), icon: Users, path: "/users" },
   ];
 
   useEffect(() => {

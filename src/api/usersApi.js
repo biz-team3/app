@@ -1,6 +1,8 @@
 import { db, findUserById, findUserByUsername, getCurrentUser, getProfileImage, nextId } from "../mocks/db.js";
 import { mockError, mockResponse } from "./mockClient.js";
 
+const ACCOUNT_VISIBILITIES = ["PUBLIC", "PRIVATE"];
+
 export function toUserSummary(user) {
   if (!user) return null;
   return {
@@ -11,25 +13,82 @@ export function toUserSummary(user) {
   };
 }
 
-// TODO API: Spring Boot 연동 시 POST /api/users 로 교체
-export async function createUser(payload) {
-  if (!payload.username) return mockError("username is required", 400);
-  if (findUserByUsername(payload.username)) return mockError("username already exists", 409);
-  const user = {
-    userId: nextId(db.users, "userId"),
-    username: payload.username,
-    name: payload.name || payload.username,
+function toUserRecord(user) {
+  return {
+    userId: user.userId,
+    username: user.username,
+    name: user.name,
+    bio: user.bio,
+    website: user.website,
+    profileImageUrl: getProfileImage(user),
+    followerCount: user.followerCount,
+    followingCount: user.followingCount,
+    postCount: db.posts.filter((post) => post.authorId === user.userId).length,
+    accountVisibility: user.accountVisibility,
+  };
+}
+
+function normalizeUserPayload(payload) {
+  const username = payload.username?.trim();
+  const accountVisibility = payload.accountVisibility || "PUBLIC";
+  if (!ACCOUNT_VISIBILITIES.includes(accountVisibility)) {
+    throw Object.assign(new Error("accountVisibility must be PUBLIC or PRIVATE"), { status: 400 });
+  }
+
+  return {
+    username,
+    name: payload.name?.trim() || username,
     bio: payload.bio || "",
     website: payload.website || "",
-    profileImageUrls: payload.profileImageUrls || [],
-    currentProfileImageIndex: 0,
+    profileImageUrl: payload.profileImageUrl || "",
+    accountVisibility,
+  };
+}
+
+// TODO API: Spring Boot 연동 시 GET /api/users?page={page}&size={size}&q={query} 로 교체
+export async function getUsers({ page = 0, size = 30, query = "" } = {}) {
+  const normalizedQuery = query.trim().toLowerCase();
+  const users = db.users
+    .filter((user) => {
+      if (!normalizedQuery) return true;
+      return (
+        user.username.toLowerCase().includes(normalizedQuery) ||
+        (user.name || "").toLowerCase().includes(normalizedQuery)
+      );
+    })
+    .map(toUserRecord);
+  const start = page * size;
+  const end = start + size;
+
+  return mockResponse({
+    users: users.slice(start, end),
+    page,
+    size,
+    totalElements: users.length,
+    totalPages: Math.ceil(users.length / size),
+    hasNext: end < users.length,
+  });
+}
+
+// TODO API: Spring Boot 연동 시 POST /api/users 204 No Content로 교체
+export async function createUser(payload) {
+  let nextPayload;
+  try {
+    nextPayload = normalizeUserPayload(payload);
+  } catch (error) {
+    return mockError(error.message, error.status);
+  }
+  if (!nextPayload.username) return mockError("username is required", 400);
+  if (findUserByUsername(nextPayload.username)) return mockError("username already exists", 409);
+  const user = {
+    userId: nextId(db.users, "userId"),
+    ...nextPayload,
     followerCount: 0,
     followingCount: 0,
     followingIds: [],
-    accountVisibility: payload.accountVisibility || "PUBLIC",
   };
   db.users.push(user);
-  return mockResponse(toUserSummary(user));
+  return mockResponse(null);
 }
 
 // TODO API: Spring Boot 연동 시 GET /api/users/{userId} 로 교체
@@ -46,27 +105,39 @@ export async function getUserByUsername(username) {
   return mockResponse(toUserSummary(user));
 }
 
-// TODO API: Spring Boot 연동 시 PATCH /api/users/{userId} 로 교체
+// TODO API: Spring Boot 연동 시 PATCH /api/users/{userId} 204 No Content로 교체
 export async function updateUser(userId, payload) {
   const user = findUserById(userId);
-  const viewer = getCurrentUser();
   if (!user) return mockError("User not found", 404);
-  if (user.userId !== viewer.userId) return mockError("Only the user owner can change this user", 403);
   if (payload.username && payload.username !== user.username && findUserByUsername(payload.username)) {
     return mockError("username already exists", 409);
   }
-  const allowedFields = ["username", "name", "bio", "website", "accountVisibility"];
-  const nextPayload = Object.fromEntries(Object.entries(payload).filter(([key]) => allowedFields.includes(key)));
+  const allowedFields = ["username", "name", "bio", "website", "profileImageUrl", "accountVisibility"];
+  const filteredPayload = Object.fromEntries(Object.entries(payload).filter(([key]) => allowedFields.includes(key)));
+  let nextPayload;
+  try {
+    nextPayload = normalizeUserPayload({ ...user, ...filteredPayload });
+  } catch (error) {
+    return mockError(error.message, error.status);
+  }
   Object.assign(user, nextPayload);
-  return mockResponse(toUserSummary(user));
+  return mockResponse(null);
 }
 
-// TODO API: Spring Boot 연동 시 DELETE /api/users/{userId} 로 교체
+// TODO API: Spring Boot 연동 시 DELETE /api/users/{userId} 204 No Content로 교체
 export async function deleteUser(userId) {
   const viewer = getCurrentUser();
-  if (Number(userId) !== viewer.userId) return mockError("Only the user owner can delete this user", 403);
+  const targetUserId = Number(userId);
+  if (targetUserId === viewer.userId) return mockError("Cannot delete the signed-in mock user", 400);
+  if (db.posts.some((post) => post.authorId === targetUserId)) return mockError("Cannot delete a user with posts in mock data", 409);
   const index = db.users.findIndex((user) => user.userId === Number(userId));
   if (index < 0) return mockError("User not found", 404);
   if (index >= 0) db.users.splice(index, 1);
-  return mockResponse({ userId: Number(userId), deleted: true });
+  db.users.forEach((user) => {
+    user.followingIds = user.followingIds.filter((followingId) => followingId !== targetUserId);
+  });
+  db.followRequests = db.followRequests.filter(
+    (request) => request.requesterId !== targetUserId && request.targetUserId !== targetUserId,
+  );
+  return mockResponse(null);
 }

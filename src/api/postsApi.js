@@ -22,28 +22,13 @@ function toMediaItem(item, postId, index) {
 function toFeedPost(post) {
   const viewer = getCurrentUser();
   const author = findUserById(post.authorId);
-  const hasActiveStory = db.stories.some((story) => story.userId === author.userId);
-  const previewComments = db.comments
-    .filter((comment) => comment.postId === post.postId)
-    .slice(0, 2)
-    .map((comment) => ({
-      commentId: comment.commentId,
-      author: {
-        userId: comment.authorId,
-        username: findUserById(comment.authorId)?.username,
-      },
-      text: comment.text,
-    }));
 
   return {
     postId: post.postId,
     author: {
       userId: author.userId,
       username: author.username,
-      displayName: author.name,
       profileImageUrl: getProfileImage(author),
-      hasActiveStory,
-      isViewer: author.userId === viewer.userId,
     },
     media: post.media,
     caption: post.caption,
@@ -52,16 +37,13 @@ function toFeedPost(post) {
     createdAtText: post.createdAtText,
     likeCount: post.likeCount,
     commentCount: post.commentCount,
-    shareCount: post.shareCount,
     likedByMe: post.likedByUserIds.includes(viewer.userId),
     savedByMe: post.savedByUserIds.includes(viewer.userId),
     suggested: post.suggested,
-    viewerFollowingAuthor: viewer.followingIds.includes(author.userId),
     viewerPermissions: {
       canEdit: author.userId === viewer.userId,
       canDelete: author.userId === viewer.userId,
     },
-    previewComments,
   };
 }
 
@@ -113,7 +95,7 @@ export async function getPostDetail(postId) {
   }
 }
 
-// TODO API: Spring Boot 연동 시 POST /api/posts 로 교체
+// TODO API: Spring Boot 연동 시 POST /api/posts 204 No Content로 교체
 export async function createPost(payload) {
   const viewer = getCurrentUser();
   const postId = nextId(db.posts, "postId");
@@ -128,16 +110,15 @@ export async function createPost(payload) {
     createdAtText: "now",
     likeCount: 0,
     commentCount: 0,
-    shareCount: 0,
     suggested: false,
     likedByUserIds: [],
     savedByUserIds: [],
   };
   db.posts.unshift(post);
-  return mockResponse(toFeedPost(post));
+  return mockResponse(null);
 }
 
-// TODO API: Spring Boot 연동 시 PATCH /api/posts/{postId} 로 교체
+// TODO API: Spring Boot 연동 시 PATCH /api/posts/{postId} 204 No Content로 교체
 export async function updatePostCaption(postId, payload) {
   let post;
   try {
@@ -151,10 +132,10 @@ export async function updatePostCaption(postId, payload) {
     translatedCaption: payload.translatedCaption || caption,
     hashtags: payload.hashtags?.length ? payload.hashtags : extractHashtags(caption),
   });
-  return mockResponse(toFeedPost(post));
+  return mockResponse(null);
 }
 
-// TODO API: Spring Boot 연동 시 PUT /api/posts/{postId}/media 로 교체
+// TODO API: Spring Boot 연동 시 PUT /api/posts/{postId}/media 204 No Content로 교체
 export async function replacePostMedia(postId, payload) {
   let post;
   try {
@@ -163,7 +144,7 @@ export async function replacePostMedia(postId, payload) {
     return mockError(error.message, error.status);
   }
   post.media = (payload.media || []).map((item, index) => toMediaItem(item, post.postId, index));
-  return mockResponse(toFeedPost(post));
+  return mockResponse(null);
 }
 
 export async function updatePost(postId, payload) {
@@ -172,7 +153,7 @@ export async function updatePost(postId, payload) {
   return result;
 }
 
-// TODO API: Spring Boot 연동 시 DELETE /api/posts/{postId} 로 교체
+// TODO API: Spring Boot 연동 시 DELETE /api/posts/{postId} 204 No Content로 교체
 export async function deletePost(postId) {
   try {
     ensurePostOwner(postId);
@@ -181,10 +162,10 @@ export async function deletePost(postId) {
   }
   const index = db.posts.findIndex((post) => post.postId === Number(postId));
   if (index >= 0) db.posts.splice(index, 1);
-  return mockResponse({ postId: Number(postId), deleted: true });
+  return mockResponse(null);
 }
 
-// TODO API: Spring Boot 연동 시 POST /api/posts/{postId}/like 로 교체
+// TODO API: Spring Boot 연동 시 POST /api/posts/{postId}/like 204 No Content로 교체
 export async function likePost(postId) {
   const viewer = getCurrentUser();
   let post;
@@ -197,10 +178,10 @@ export async function likePost(postId) {
     post.likedByUserIds.push(viewer.userId);
     post.likeCount += 1;
   }
-  return mockResponse({ postId: Number(postId), likedByMe: true, likeCount: post.likeCount });
+  return mockResponse(null);
 }
 
-// TODO API: Spring Boot 연동 시 DELETE /api/posts/{postId}/like 로 교체
+// TODO API: Spring Boot 연동 시 DELETE /api/posts/{postId}/like 204 No Content로 교체
 export async function unlikePost(postId) {
   const viewer = getCurrentUser();
   let post;
@@ -211,10 +192,10 @@ export async function unlikePost(postId) {
   }
   post.likedByUserIds = post.likedByUserIds.filter((userId) => userId !== viewer.userId);
   post.likeCount = Math.max(0, post.likeCount - 1);
-  return mockResponse({ postId: Number(postId), likedByMe: false, likeCount: post.likeCount });
+  return mockResponse(null);
 }
 
-// TODO API: Spring Boot 연동 시 POST /api/posts/{postId}/save 로 교체
+// TODO API: Spring Boot 연동 시 POST /api/posts/{postId}/save 204 No Content로 교체
 export async function savePost(postId) {
   const viewer = getCurrentUser();
   let post;
@@ -226,10 +207,10 @@ export async function savePost(postId) {
   if (!post.savedByUserIds.includes(viewer.userId)) {
     post.savedByUserIds.push(viewer.userId);
   }
-  return mockResponse({ postId: Number(postId), savedByMe: true });
+  return mockResponse(null);
 }
 
-// TODO API: Spring Boot 연동 시 DELETE /api/posts/{postId}/save 로 교체
+// TODO API: Spring Boot 연동 시 DELETE /api/posts/{postId}/save 204 No Content로 교체
 export async function unsavePost(postId) {
   const viewer = getCurrentUser();
   let post;
@@ -239,5 +220,5 @@ export async function unsavePost(postId) {
     return mockError(error.message, error.status);
   }
   post.savedByUserIds = post.savedByUserIds.filter((userId) => userId !== viewer.userId);
-  return mockResponse({ postId: Number(postId), savedByMe: false });
+  return mockResponse(null);
 }

@@ -18,8 +18,6 @@ function toProfile(user) {
     name: user.name,
     bio: user.bio,
     website: user.website,
-    profileImageUrls: user.profileImageUrls,
-    currentProfileImageIndex: user.currentProfileImageIndex || 0,
     profileImageUrl: getProfileImage(user),
     followerCount: user.followerCount,
     followingCount: user.followingCount,
@@ -103,8 +101,7 @@ export async function updateProfile(userId, payload) {
     "bio",
     "website",
     "accountVisibility",
-    "profileImageUrls",
-    "currentProfileImageIndex",
+    "profileImageUrl",
   ];
   const nextPayload = Object.fromEntries(Object.entries(payload).filter(([key]) => allowedFields.includes(key)));
   Object.assign(user, nextPayload);

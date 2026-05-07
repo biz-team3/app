@@ -1,4 +1,4 @@
-import { Home, PlusSquare, User } from "lucide-react";
+import { Home, PlusSquare, User, Users } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 export function BottomNav({ onCreate }) {
@@ -6,6 +6,7 @@ export function BottomNav({ onCreate }) {
   const items = [
     { icon: Home, path: "/" },
     { icon: PlusSquare, action: onCreate },
+    { icon: Users, path: "/users" },
     { icon: User, path: "/profile" },
   ];
   return (

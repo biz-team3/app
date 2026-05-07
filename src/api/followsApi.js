@@ -1,4 +1,4 @@
-import { canViewerSeeUser, db, findPendingFollowRequest, findUserById, getCurrentUser, getViewerRelation, nextId } from "../mocks/db.js";
+import { db, findPendingFollowRequest, findUserById, getCurrentUser, getProfileImage, getViewerRelation, nextId } from "../mocks/db.js";
 import { mockError, mockResponse } from "./mockClient.js";
 
 function toFollowUser(user) {
@@ -7,18 +7,9 @@ function toFollowUser(user) {
     userId: user.userId,
     username: user.username,
     name: user.name,
-    profileImageUrl: user.profileImageUrls?.[user.currentProfileImageIndex || 0] || user.profileImageUrls?.[0] || "",
+    profileImageUrl: getProfileImage(user),
     viewerRelation: getViewerRelation(user, viewer),
     isViewer: user.userId === viewer.userId,
-  };
-}
-
-function followResponse(targetUser) {
-  return {
-    targetUserId: targetUser.userId,
-    viewerRelation: getViewerRelation(targetUser),
-    canViewContent: canViewerSeeUser(targetUser),
-    followerCount: targetUser.followerCount,
   };
 }
 
@@ -62,7 +53,7 @@ export async function getFollowing(userId, { page = 0, size = 20, query = "" } =
   return mockResponse({ userId: Number(userId), ...paginate(users, page, size) });
 }
 
-// TODO API: Spring Boot 연동 시 POST /api/follows/{targetUserId} 로 교체
+// TODO API: Spring Boot 연동 시 POST /api/follows/{targetUserId} 204 No Content로 교체
 export async function followUser(targetUserId) {
   const viewer = getCurrentUser();
   const targetUser = findUserById(targetUserId);
@@ -78,10 +69,10 @@ export async function followUser(targetUserId) {
         status: "PENDING",
         username: viewer.username,
         mutualText: "",
-        imageUrl: viewer.profileImageUrls?.[viewer.currentProfileImageIndex || 0] || viewer.profileImageUrls?.[0] || "",
+        imageUrl: getProfileImage(viewer),
       });
     }
-    return mockResponse(followResponse(targetUser));
+    return mockResponse(null);
   }
 
   if (!viewer.followingIds.includes(targetUser.userId)) {
@@ -89,10 +80,10 @@ export async function followUser(targetUserId) {
     viewer.followingCount += 1;
     targetUser.followerCount += 1;
   }
-  return mockResponse(followResponse(targetUser));
+  return mockResponse(null);
 }
 
-// TODO API: Spring Boot 연동 시 DELETE /api/follows/{targetUserId} 로 교체
+// TODO API: Spring Boot 연동 시 DELETE /api/follows/{targetUserId} 204 No Content로 교체
 export async function unfollowUser(targetUserId) {
   const viewer = getCurrentUser();
   const targetUser = findUserById(targetUserId);
@@ -107,5 +98,5 @@ export async function unfollowUser(targetUserId) {
     viewer.followingCount = Math.max(0, viewer.followingCount - 1);
     targetUser.followerCount = Math.max(0, targetUser.followerCount - 1);
   }
-  return mockResponse(followResponse(targetUser));
+  return mockResponse(null);
 }
