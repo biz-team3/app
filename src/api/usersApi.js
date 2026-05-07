@@ -40,7 +40,6 @@ function normalizeUserPayload(payload) {
     bio: payload.bio || "",
     website: payload.website || "",
     profileImageUrl: payload.profileImageUrl || "",
-    profileImageUrls: payload.profileImageUrl ? [payload.profileImageUrl] : [],
     accountVisibility,
   };
 }
