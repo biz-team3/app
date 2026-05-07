@@ -5,6 +5,7 @@ import { useAuth } from "../../hooks/useAuth.js";
 
 const EMPTY_FORM = {
   username: "",
+  password: "",
   name: "",
   bio: "",
   website: "",
@@ -17,6 +18,7 @@ const FALLBACK_PROFILE_IMAGE = "/oosu.hada.jpg";
 function userToForm(user) {
   return {
     username: user.username || "",
+    password: "",
     name: user.name || "",
     bio: user.bio || "",
     website: user.website || "",
@@ -254,6 +256,14 @@ export function UserCrudPage() {
             </div>
 
             <Field label="username" name="username" value={form.username} onChange={handleChange} required />
+            <Field
+              label={selectedUser ? "password (변경 시 입력)" : "password"}
+              name="password"
+              type="password"
+              value={form.password}
+              onChange={handleChange}
+              required={!selectedUser}
+            />
             <Field label="name" name="name" value={form.name} onChange={handleChange} />
             <Field label="website" name="website" value={form.website} onChange={handleChange} />
 
@@ -305,11 +315,12 @@ export function UserCrudPage() {
   );
 }
 
-function Field({ label, name, value, onChange, required = false }) {
+function Field({ label, name, value, onChange, required = false, type = "text" }) {
   return (
     <label className="block">
       <span className="text-xs font-bold text-gray-500">{label}</span>
       <input
+        type={type}
         name={name}
         value={value}
         onChange={onChange}
