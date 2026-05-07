@@ -140,7 +140,7 @@ export function UserCrudPage() {
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-6 pb-24 md:px-8 md:py-8">
       <header className="flex flex-col gap-4 border-b border-gray-200 pb-5 dark:border-gray-800 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase text-gray-500">Mock DB</p>
+          <p className="text-xs font-bold uppercase text-gray-500">Spring Boot API</p>
           <h1 className="mt-1 text-2xl font-bold">사용자 CRUD</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">

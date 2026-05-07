@@ -1,5 +1,4 @@
-import { db, findUserById, findUserByUsername, getCurrentUser, getProfileImage, nextId } from "../mocks/db.js";
-import { mockError, mockResponse } from "./mockClient.js";
+import { apiRequest } from "./mockClient.js";
 
 const ACCOUNT_VISIBILITIES = ["PUBLIC", "PRIVATE"];
 
@@ -9,22 +8,22 @@ export function toUserSummary(user) {
     userId: user.userId,
     username: user.username,
     name: user.name,
-    profileImageUrl: getProfileImage(user),
+    profileImageUrl: user.profileImageUrl || user.profileImg || "",
   };
 }
 
-function toUserRecord(user) {
+function toUserRecord(user = {}) {
   return {
     userId: user.userId,
     username: user.username,
     name: user.name,
     bio: user.bio,
     website: user.website,
-    profileImageUrl: getProfileImage(user),
-    followerCount: user.followerCount,
-    followingCount: user.followingCount,
-    postCount: db.posts.filter((post) => post.authorId === user.userId).length,
-    accountVisibility: user.accountVisibility,
+    profileImageUrl: user.profileImageUrl || user.profileImg || "",
+    followerCount: user.followerCount || 0,
+    followingCount: user.followingCount || 0,
+    postCount: user.postCount || 0,
+    accountVisibility: user.accountVisibility || user.accountVis || "PUBLIC",
   };
 }
 
@@ -41,103 +40,54 @@ function normalizeUserPayload(payload) {
     bio: payload.bio || "",
     website: payload.website || "",
     profileImageUrl: payload.profileImageUrl || "",
+    profileImageUrls: payload.profileImageUrl ? [payload.profileImageUrl] : [],
     accountVisibility,
   };
 }
 
-// TODO API: Spring Boot 연동 시 GET /api/users?page={page}&size={size}&q={query} 로 교체
 export async function getUsers({ page = 0, size = 30, query = "" } = {}) {
-  const normalizedQuery = query.trim().toLowerCase();
-  const users = db.users
-    .filter((user) => {
-      if (!normalizedQuery) return true;
-      return (
-        user.username.toLowerCase().includes(normalizedQuery) ||
-        (user.name || "").toLowerCase().includes(normalizedQuery)
-      );
-    })
-    .map(toUserRecord);
-  const start = page * size;
-  const end = start + size;
-
-  return mockResponse({
-    users: users.slice(start, end),
-    page,
-    size,
-    totalElements: users.length,
-    totalPages: Math.ceil(users.length / size),
-    hasNext: end < users.length,
+  const params = new URLSearchParams({
+    page: String(page),
+    size: String(size),
   });
-}
-
-// TODO API: Spring Boot 연동 시 POST /api/users 204 No Content로 교체
-export async function createUser(payload) {
-  let nextPayload;
-  try {
-    nextPayload = normalizeUserPayload(payload);
-  } catch (error) {
-    return mockError(error.message, error.status);
-  }
-  if (!nextPayload.username) return mockError("username is required", 400);
-  if (findUserByUsername(nextPayload.username)) return mockError("username already exists", 409);
-  const user = {
-    userId: nextId(db.users, "userId"),
-    ...nextPayload,
-    followerCount: 0,
-    followingCount: 0,
-    followingIds: [],
+  if (query.trim()) params.set("q", query.trim());
+  const result = await apiRequest(`/api/users?${params.toString()}`);
+  return {
+    users: (result.users || []).map(toUserRecord),
+    page: result.page ?? page,
+    size: result.size ?? size,
+    totalElements: result.totalElements ?? 0,
+    totalPages: result.totalPages ?? 0,
+    hasNext: Boolean(result.hasNext),
   };
-  db.users.push(user);
-  return mockResponse(null);
 }
 
-// TODO API: Spring Boot 연동 시 GET /api/users/{userId} 로 교체
-export async function getUserById(userId) {
-  const user = findUserById(userId);
-  if (!user) return mockError("User not found", 404);
-  return mockResponse(toUserSummary(user));
-}
-
-// TODO API: Spring Boot 연동 시 GET /api/users/by-username/{username} 로 교체
-export async function getUserByUsername(username) {
-  const user = findUserByUsername(username);
-  if (!user) return mockError("User not found", 404);
-  return mockResponse(toUserSummary(user));
-}
-
-// TODO API: Spring Boot 연동 시 PATCH /api/users/{userId} 204 No Content로 교체
-export async function updateUser(userId, payload) {
-  const user = findUserById(userId);
-  if (!user) return mockError("User not found", 404);
-  if (payload.username && payload.username !== user.username && findUserByUsername(payload.username)) {
-    return mockError("username already exists", 409);
-  }
-  const allowedFields = ["username", "name", "bio", "website", "profileImageUrl", "accountVisibility"];
-  const filteredPayload = Object.fromEntries(Object.entries(payload).filter(([key]) => allowedFields.includes(key)));
-  let nextPayload;
-  try {
-    nextPayload = normalizeUserPayload({ ...user, ...filteredPayload });
-  } catch (error) {
-    return mockError(error.message, error.status);
-  }
-  Object.assign(user, nextPayload);
-  return mockResponse(null);
-}
-
-// TODO API: Spring Boot 연동 시 DELETE /api/users/{userId} 204 No Content로 교체
-export async function deleteUser(userId) {
-  const viewer = getCurrentUser();
-  const targetUserId = Number(userId);
-  if (targetUserId === viewer.userId) return mockError("Cannot delete the signed-in mock user", 400);
-  if (db.posts.some((post) => post.authorId === targetUserId)) return mockError("Cannot delete a user with posts in mock data", 409);
-  const index = db.users.findIndex((user) => user.userId === Number(userId));
-  if (index < 0) return mockError("User not found", 404);
-  if (index >= 0) db.users.splice(index, 1);
-  db.users.forEach((user) => {
-    user.followingIds = user.followingIds.filter((followingId) => followingId !== targetUserId);
+export async function createUser(payload) {
+  const result = await apiRequest("/api/users", {
+    method: "POST",
+    body: JSON.stringify(normalizeUserPayload(payload)),
   });
-  db.followRequests = db.followRequests.filter(
-    (request) => request.requesterId !== targetUserId && request.targetUserId !== targetUserId,
-  );
-  return mockResponse(null);
+  return result ? toUserSummary(result) : null;
+}
+
+export async function getUserById(userId) {
+  return toUserSummary(await apiRequest(`/api/users/${userId}`));
+}
+
+export async function getUserByUsername(username) {
+  return toUserSummary(await apiRequest(`/api/users/by-username/${encodeURIComponent(username)}`));
+}
+
+export async function updateUser(userId, payload) {
+  const result = await apiRequest(`/api/users/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify(normalizeUserPayload(payload)),
+  });
+  return result ? toUserSummary(result) : null;
+}
+
+export async function deleteUser(userId) {
+  return apiRequest(`/api/users/${userId}`, {
+    method: "DELETE",
+  });
 }
