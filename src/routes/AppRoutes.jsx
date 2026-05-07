@@ -29,7 +29,7 @@ export function AppRoutes() {
         <Route path="/" element={<FeedPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/profile/:username" element={<ProfilePage />} />
-        <Route path="/users" element={<UserCrudPage />} />
+        <Route path="/admin" element={<UserCrudPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

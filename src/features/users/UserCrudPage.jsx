@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, RefreshCw, Save, Search, Trash2, UserRound } from "lucide-react";
 import { createUser, deleteUser, getUsers, updateUser } from "../../api/usersApi.js";
 import { useAuth } from "../../hooks/useAuth.js";
@@ -13,6 +13,7 @@ const EMPTY_FORM = {
 };
 
 const FALLBACK_PROFILE_IMAGE = "/oosu.hada.jpg";
+const USER_PAGE_SIZE = 20;
 
 function userToForm(user) {
   return {
@@ -31,10 +32,16 @@ function visibilityLabel(value) {
 
 export function UserCrudPage() {
   const { user: authUser, refreshMe } = useAuth();
+  const sentinelRef = useRef(null);
+  const loadingRef = useRef(false);
+  const requestIdRef = useRef(0);
   const [users, setUsers] = useState([]);
   const [query, setQuery] = useState("");
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [page, setPage] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
+  const [totalElements, setTotalElements] = useState(0);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -45,24 +52,57 @@ export function UserCrudPage() {
     [selectedUserId, users],
   );
 
-  const loadUsers = useCallback(async (nextQuery = query) => {
+  const loadUsers = useCallback(async ({ targetPage = 0, mode = "replace", nextQuery = query } = {}) => {
+    if (mode === "append" && loadingRef.current) return [];
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    loadingRef.current = true;
     setLoading(true);
     setError("");
     try {
-      const result = await getUsers({ query: nextQuery, size: 100 });
-      setUsers(result.users);
+      const result = await getUsers({ page: targetPage, size: USER_PAGE_SIZE, query: nextQuery });
+      if (requestId !== requestIdRef.current) return [];
+
+      setUsers((current) => (mode === "append" ? [...current, ...result.users] : result.users));
+      setPage(result.page);
+      setHasNext(result.hasNext);
+      setTotalElements(result.totalElements);
       return result.users;
     } catch (err) {
-      setError(err.message || "사용자를 불러오지 못했습니다.");
+      if (requestId === requestIdRef.current) setError(err.message || "사용자를 불러오지 못했습니다.");
       return [];
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) {
+        loadingRef.current = false;
+        setLoading(false);
+      }
     }
   }, [query]);
 
   useEffect(() => {
-    loadUsers();
+    setUsers([]);
+    setPage(0);
+    setHasNext(false);
+    setTotalElements(0);
+    loadUsers({ targetPage: 0, mode: "replace" });
   }, [loadUsers]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && hasNext && !loadingRef.current) {
+          loadUsers({ targetPage: page + 1, mode: "append" });
+        }
+      },
+      { rootMargin: "160px 0px" },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasNext, loadUsers, page]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -94,7 +134,7 @@ export function UserCrudPage() {
     try {
       if (selectedUserId) {
         await updateUser(selectedUserId, form);
-        const nextUsers = await loadUsers();
+        const nextUsers = await loadUsers({ targetPage: 0, mode: "replace" });
         const updatedUser = nextUsers.find((user) => user.userId === selectedUserId);
         if (updatedUser) setForm(userToForm(updatedUser));
         if (authUser?.userId === selectedUserId) await refreshMe();
@@ -102,7 +142,7 @@ export function UserCrudPage() {
       } else {
         await createUser(form);
         setQuery("");
-        const nextUsers = await loadUsers("");
+        const nextUsers = await loadUsers({ targetPage: 0, mode: "replace", nextQuery: "" });
         const createdUser = nextUsers.find((user) => user.username === form.username.trim());
         setSelectedUserId(createdUser?.userId || null);
         if (createdUser) setForm(userToForm(createdUser));
@@ -127,7 +167,7 @@ export function UserCrudPage() {
       await deleteUser(selectedUser.userId);
       setSelectedUserId(null);
       setForm(EMPTY_FORM);
-      await loadUsers();
+      await loadUsers({ targetPage: 0, mode: "replace" });
       setNotice("사용자를 삭제했습니다.");
     } catch (err) {
       setError(err.message || "사용자 삭제에 실패했습니다.");
@@ -155,7 +195,7 @@ export function UserCrudPage() {
           </label>
           <button
             type="button"
-            onClick={() => loadUsers()}
+            onClick={() => loadUsers({ targetPage: 0, mode: "replace" })}
             className="inline-flex h-10 items-center gap-2 rounded-lg border border-gray-200 px-3 text-sm font-semibold hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900"
           >
             <RefreshCw className="h-4 w-4" />
@@ -182,7 +222,9 @@ export function UserCrudPage() {
         <section className="min-w-0 overflow-hidden border border-gray-200 dark:border-gray-800">
           <div className="flex h-12 items-center justify-between border-b border-gray-200 px-4 dark:border-gray-800">
             <h2 className="text-sm font-bold">사용자 목록</h2>
-            <span className="text-xs font-semibold text-gray-500">{loading ? "불러오는 중" : `${users.length}명`}</span>
+            <span className="text-xs font-semibold text-gray-500">
+              {loading && users.length === 0 ? "불러오는 중" : `${users.length}/${totalElements}명`}
+            </span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] border-collapse text-left text-sm">
@@ -220,6 +262,13 @@ export function UserCrudPage() {
                     </tr>
                   );
                 })}
+                {loading && users.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="px-4 py-12 text-center text-sm text-gray-500">
+                      사용자를 불러오는 중입니다.
+                    </td>
+                  </tr>
+                ) : null}
                 {!loading && users.length === 0 ? (
                   <tr>
                     <td colSpan="5" className="px-4 py-12 text-center text-sm text-gray-500">
@@ -229,6 +278,9 @@ export function UserCrudPage() {
                 ) : null}
               </tbody>
             </table>
+          </div>
+          <div ref={sentinelRef} className="border-t border-gray-100 px-4 py-4 text-center text-xs font-semibold text-gray-500 dark:border-gray-900">
+            {loading && users.length > 0 ? "다음 사용자를 불러오는 중입니다." : hasNext ? "아래로 스크롤하면 더 불러옵니다." : users.length > 0 ? "모든 사용자를 확인했습니다." : ""}
           </div>
         </section>
 
