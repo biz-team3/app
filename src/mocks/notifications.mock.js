@@ -16,7 +16,6 @@ export const notificationsMock = [
     actorImageUrl: "https://randomuser.me/api/portraits/men/90.jpg",
     createdAtText: "2d",
     period: "week",
-    actionText: "Following",
   },
   {
     notificationId: 3,
@@ -25,7 +24,6 @@ export const notificationsMock = [
     actorImageUrl: "https://randomuser.me/api/portraits/women/90.jpg",
     createdAtText: "3d",
     period: "week",
-    actionText: "Follow",
     primary: true,
   },
 ];

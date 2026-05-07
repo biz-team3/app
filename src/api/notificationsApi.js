@@ -18,13 +18,13 @@ export async function getNotifications() {
   return mockResponse({ notifications: db.notifications });
 }
 
-// TODO API: Spring Boot 연동 시 PATCH /api/notifications/read 로 교체
+// TODO API: Spring Boot 연동 시 PATCH /api/notifications/read 204 No Content로 교체
 export async function markNotificationsRead(payload = {}) {
   const ids = payload.notificationIds?.map(Number) || db.notifications.map((notification) => notification.notificationId);
   db.notifications.forEach((notification) => {
     if (ids.includes(notification.notificationId)) notification.read = true;
   });
-  return mockResponse({ notificationIds: ids, read: true });
+  return mockResponse(null);
 }
 
 // TODO API: Spring Boot 연동 시 GET /api/notifications/summary 로 교체
@@ -52,7 +52,7 @@ export async function getFollowRequests() {
   });
 }
 
-// TODO API: Spring Boot 연동 시 POST /api/follow-requests/{requestId}/accept 로 교체
+// TODO API: Spring Boot 연동 시 POST /api/follow-requests/{requestId}/accept 204 No Content로 교체
 export async function acceptFollowRequest(requestId) {
   const request = db.followRequests.find((item) => item.requestId === Number(requestId));
   const viewer = getCurrentUser();
@@ -69,10 +69,10 @@ export async function acceptFollowRequest(requestId) {
     }
   }
   db.followRequests = db.followRequests.filter((request) => request.requestId !== Number(requestId));
-  return mockResponse({ requestId: Number(requestId), accepted: true });
+  return mockResponse(null);
 }
 
-// TODO API: Spring Boot 연동 시 DELETE /api/follow-requests/{requestId} 로 교체
+// TODO API: Spring Boot 연동 시 DELETE /api/follow-requests/{requestId} 204 No Content로 교체
 export async function rejectFollowRequest(requestId) {
   const viewer = getCurrentUser();
   const request = db.followRequests.find((item) => item.requestId === Number(requestId));
@@ -80,5 +80,5 @@ export async function rejectFollowRequest(requestId) {
     return mockError("Follow request not found", 404);
   }
   db.followRequests = db.followRequests.filter((request) => request.requestId !== Number(requestId));
-  return mockResponse({ requestId: Number(requestId), rejected: true });
+  return mockResponse(null);
 }

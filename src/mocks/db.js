@@ -32,7 +32,7 @@ export function getCurrentUser() {
 }
 
 export function getProfileImage(user) {
-  return user?.profileImageUrls?.[user.currentProfileImageIndex || 0] || user?.profileImageUrls?.[0] || "";
+  return user?.profileImageUrl || "";
 }
 
 export function canViewerSeeUser(targetUser, viewer = getCurrentUser()) {

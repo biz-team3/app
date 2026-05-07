@@ -5,6 +5,7 @@ import { LoginPage } from "../features/auth/LoginPage.jsx";
 import { FeedPage } from "../features/feed/FeedPage.jsx";
 import { ProfilePage } from "../features/profile/ProfilePage.jsx";
 import { SettingsPage } from "../features/settings/SettingsPage.jsx";
+import { UserCrudPage } from "../features/users/UserCrudPage.jsx";
 
 function ProtectedRoute({ children }) {
   const { authenticated, loading } = useAuth();
@@ -28,10 +29,10 @@ export function AppRoutes() {
         <Route path="/" element={<FeedPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/profile/:username" element={<ProfilePage />} />
+        <Route path="/users" element={<UserCrudPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
-

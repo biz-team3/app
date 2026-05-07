@@ -12,7 +12,8 @@ export function ProfileEditModal({ isOpen, onClose, onSaved }) {
   const fileInputRef = useRef(null);
   const [profile, setProfile] = useState(null);
   const [form, setForm] = useState({ username: "", name: "", bio: "", website: "", accountVisibility: "PUBLIC" });
-  const [pendingProfileFiles, setPendingProfileFiles] = useState({});
+  const [pendingProfileFile, setPendingProfileFile] = useState(null);
+  const [pendingProfilePreviewUrl, setPendingProfilePreviewUrl] = useState("");
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -21,7 +22,8 @@ export function ProfileEditModal({ isOpen, onClose, onSaved }) {
   useEffect(() => {
     if (!isOpen) return;
     setProfile(null);
-    setPendingProfileFiles({});
+    setPendingProfileFile(null);
+    setPendingProfilePreviewUrl("");
     setSaved(false);
     setSaving(false);
     setError("");
@@ -36,6 +38,12 @@ export function ProfileEditModal({ isOpen, onClose, onSaved }) {
       });
     });
   }, [isOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingProfilePreviewUrl) URL.revokeObjectURL(pendingProfilePreviewUrl);
+    };
+  }, [pendingProfilePreviewUrl]);
 
   if (!isOpen) return null;
 
@@ -55,19 +63,18 @@ export function ProfileEditModal({ isOpen, onClose, onSaved }) {
       return;
     }
     const previewUrl = URL.createObjectURL(file);
-    setPendingProfileFiles((current) => ({ ...current, [previewUrl]: file }));
+    setPendingProfileFile(file);
+    setPendingProfilePreviewUrl(previewUrl);
     setProfile((current) => ({
       ...current,
-      profileImageUrls: [...current.profileImageUrls, previewUrl],
-      currentProfileImageIndex: current.profileImageUrls.length,
       profileImageUrl: previewUrl,
     }));
     setSaved(false);
   };
 
   const handleClose = () => {
-    Object.keys(pendingProfileFiles).forEach((previewUrl) => URL.revokeObjectURL(previewUrl));
-    setPendingProfileFiles({});
+    setPendingProfileFile(null);
+    setPendingProfilePreviewUrl("");
     onClose();
   };
 
@@ -78,10 +85,10 @@ export function ProfileEditModal({ isOpen, onClose, onSaved }) {
     setError("");
 
     try {
-      let nextProfileImageUrls = [...profile.profileImageUrls];
-      for (const [previewUrl, file] of Object.entries(pendingProfileFiles)) {
-        const uploadResult = await uploadProfileImage(file);
-        nextProfileImageUrls = nextProfileImageUrls.map((url) => (url === previewUrl ? uploadResult.imageUrl : url));
+      let nextProfileImageUrl = profile.profileImageUrl || "";
+      if (pendingProfileFile) {
+        const uploadResult = await uploadProfileImage(pendingProfileFile);
+        nextProfileImageUrl = uploadResult.imageUrl;
       }
 
       const next = await updateProfile(profile.userId, {
@@ -90,11 +97,10 @@ export function ProfileEditModal({ isOpen, onClose, onSaved }) {
         bio: form.bio,
         website: form.website,
         accountVisibility: form.accountVisibility,
-        profileImageUrls: nextProfileImageUrls,
-        currentProfileImageIndex: profile.currentProfileImageIndex,
+        profileImageUrl: nextProfileImageUrl,
       });
-      Object.keys(pendingProfileFiles).forEach((previewUrl) => URL.revokeObjectURL(previewUrl));
-      setPendingProfileFiles({});
+      setPendingProfileFile(null);
+      setPendingProfilePreviewUrl("");
       setProfile(next);
       await refreshMe();
       onSaved?.();

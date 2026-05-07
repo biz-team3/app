@@ -20,11 +20,11 @@ export async function login({ username, password }) {
   return mockResponse({ accessToken, tokenType: "Bearer", user: summary });
 }
 
-// TODO API: Spring Boot 연동 시 POST /api/auth/logout 로 교체
+// TODO API: Spring Boot 연동 시 POST /api/auth/logout 204 No Content로 교체
 export async function logout() {
   clearAccessToken();
   localStorage.removeItem(AUTH_USER_KEY);
-  return mockResponse({ ok: true });
+  return mockResponse(null);
 }
 
 // TODO API: Spring Boot 연동 시 GET /api/auth/me 로 교체. Authorization: Bearer {accessToken} 포함.

@@ -63,7 +63,7 @@ export async function getPostComments(postId, { page = 0, size = 20 } = {}) {
   });
 }
 
-// TODO API: Spring Boot 연동 시 POST /api/posts/{postId}/comments 로 교체
+// TODO API: Spring Boot 연동 시 POST /api/posts/{postId}/comments 204 No Content로 교체
 export async function createComment(postId, payload) {
   try {
     ensurePostVisible(postId);
@@ -80,10 +80,10 @@ export async function createComment(postId, payload) {
   db.comments.push(comment);
   const post = db.posts.find((item) => item.postId === Number(postId));
   if (post) post.commentCount += 1;
-  return mockResponse(toComment(comment));
+  return mockResponse(null);
 }
 
-// TODO API: Spring Boot 연동 시 PATCH /api/comments/{commentId} 로 교체
+// TODO API: Spring Boot 연동 시 PATCH /api/comments/{commentId} 204 No Content로 교체
 export async function updateComment(commentId, payload) {
   let comment;
   try {
@@ -92,10 +92,10 @@ export async function updateComment(commentId, payload) {
     return mockError(error.message, error.status);
   }
   Object.assign(comment, payload);
-  return mockResponse(toComment(comment));
+  return mockResponse(null);
 }
 
-// TODO API: Spring Boot 연동 시 DELETE /api/comments/{commentId} 로 교체
+// TODO API: Spring Boot 연동 시 DELETE /api/comments/{commentId} 204 No Content로 교체
 export async function deleteComment(commentId) {
   try {
     ensureCommentOwner(commentId);
@@ -106,5 +106,5 @@ export async function deleteComment(commentId) {
   const [removed] = index >= 0 ? db.comments.splice(index, 1) : [];
   const post = removed && db.posts.find((item) => item.postId === removed.postId);
   if (post) post.commentCount = Math.max(0, post.commentCount - 1);
-  return mockResponse({ commentId: Number(commentId), deleted: true });
+  return mockResponse(null);
 }
