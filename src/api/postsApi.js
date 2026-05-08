@@ -1,5 +1,5 @@
 import { canViewerSeeUser, db, findUserById, getCurrentUser, getProfileImage, nextId } from "../mocks/db.js";
-import { mockError, mockResponse } from "./mockClient.js";
+import {apiRequest, mockError, mockResponse} from "./mockClient.js";
 
 function extractHashtags(text = "") {
   return Array.from(new Set(text.match(/#[^\s#]+/g) || []));
@@ -95,7 +95,7 @@ export async function getPostDetail(postId) {
   }
 }
 
-// TODO API: Spring Boot 연동 시 POST /api/posts 204 No Content로 교체
+// TODO API: Spring Boot 연동 시 POST /api/posts 204 No Content로 교체, AToken 통해서 유저 받아와야함.
 export async function createPost(payload) {
   const caption = payload.caption?.trim() || "";
 
