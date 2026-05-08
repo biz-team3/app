@@ -8,6 +8,7 @@ import {
   getViewerRelation,
 } from "../mocks/db.js";
 import { mockError, mockResponse } from "./mockClient.js";
+import { createPageResponseFromItems } from "./pageResponse.js";
 
 function toProfile(user) {
   const viewer = getCurrentUser();
@@ -65,19 +66,7 @@ export async function getProfilePosts(userId, { page = 0, size = 12 } = {}) {
           commentCount: post.commentCount,
         }))
     : [];
-  const start = page * size;
-  const end = start + size;
-
-  return mockResponse({
-    userId: Number(userId),
-    canViewContent,
-    posts: allPosts.slice(start, end),
-    page,
-    size,
-    totalElements: allPosts.length,
-    totalPages: Math.ceil(allPosts.length / size),
-    hasNext: end < allPosts.length,
-  });
+  return mockResponse(createPageResponseFromItems(allPosts, { page, size }));
 }
 
 // TODO API: Spring Boot 연동 시 GET /api/profiles/users/{userId}/stories 로 교체
