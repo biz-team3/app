@@ -318,7 +318,7 @@ export const commentsMock = [
   { commentId: 26, postId: 8, authorId: 9, text: "댓글 목록이 20개를 넘어갈 때 다음 페이지가 자연스럽게 붙는지 확인하기 위한 mock입니다. 첫 페이지 마지막 근처에서 스크롤을 내리면 나머지 댓글이 이어져야 합니다.", createdAtText: "now" },
   { commentId: 27, postId: 8, authorId: 3, text: "이 정도 길이면 실제 서비스에서 사용자가 피드백을 길게 남긴 상황도 꽤 비슷하게 볼 수 있겠네요. 특히 모바일에서 줄 높이와 간격이 답답하지 않은지도 같이 확인하면 좋겠습니다.", createdAtText: "now" },
   { commentId: 28, postId: 8, authorId: 4, text: "스크롤이 댓글 영역 안에서만 움직이고, 사진 영역이나 모달 전체가 같이 밀리지 않는지도 봐야겠어요. 상세 화면은 이런 작은 동작이 꽤 중요합니다.", createdAtText: "now" },
-  { commentId: 29, postId: 8, authorId: 5, text: "20개씩 가져오는 기준이면 백엔드에서도 page, size, totalElements, hasNext 정도만 맞춰주면 프론트가 그대로 붙기 좋을 것 같습니다.", createdAtText: "now" },
+  { commentId: 29, postId: 8, authorId: 5, text: "20개씩 가져오는 기준이면 백엔드에서도 content, pageRequest, total, hasNext 정도만 맞춰주면 프론트가 그대로 붙기 좋을 것 같습니다.", createdAtText: "now" },
   { commentId: 30, postId: 8, authorId: 6, text: "댓글이 길어져도 수정 버튼과 삭제 버튼이 본문 옆에서 어색하게 튀지 않고 아래 메타 영역에 정리되어 보이는지 확인하는 용도입니다.", createdAtText: "now" },
   { commentId: 31, postId: 8, authorId: 2, text: "두 번째 페이지가 붙었을 때 중복 댓글이 생기지 않아야 합니다. 같은 commentId가 반복되지 않는지도 같이 보면 좋겠습니다.", createdAtText: "now" },
   { commentId: 32, postId: 8, authorId: 7, text: "무한 스크롤 기준이라면 로딩 문구도 짧게만 보이고, 다음 데이터가 없을 때는 더 이상 요청하지 않는 흐름이면 충분해 보여요.", createdAtText: "now" },

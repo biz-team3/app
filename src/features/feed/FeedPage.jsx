@@ -45,8 +45,8 @@ export function FeedPage() {
 
     try {
       const feed = await getFeedPosts({ page: targetPage, size: 10 });
-      setPosts((current) => (mode === "append" ? [...current, ...feed.posts] : feed.posts));
-      setPage(feed.page);
+      setPosts((current) => (mode === "append" ? [...current, ...feed.content] : feed.content));
+      setPage(feed.pageRequest.page);
       setHasNext(feed.hasNext);
     } catch {
       setError(t("feedLoadFailed"));

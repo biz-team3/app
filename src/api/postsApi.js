@@ -1,5 +1,6 @@
 import { canViewerSeeUser, db, findUserById, getCurrentUser, getProfileImage, nextId } from "../mocks/db.js";
 import {apiRequest, mockError, mockResponse} from "./mockClient.js";
+import { createPageResponseFromItems } from "./pageResponse.js";
 
 function extractHashtags(text = "") {
   return Array.from(new Set(text.match(/#[^\s#]+/g) || []));
@@ -71,19 +72,8 @@ function ensurePostOwner(postId) {
 
 // TODO API: Spring Boot 연동 시 GET /api/posts/feed?page={page}&size={size} 로 교체
 export async function getFeedPosts({ page = 0, size = 10 } = {}) {
-  const start = page * size;
-  const end = start + size;
   const visiblePosts = db.posts.filter((post) => canViewerSeeUser(findUserById(post.authorId)));
-  const posts = visiblePosts.slice(start, end).map(toFeedPost);
-
-  return mockResponse({
-    posts,
-    page,
-    size,
-    totalElements: visiblePosts.length,
-    totalPages: Math.ceil(visiblePosts.length / size),
-    hasNext: end < visiblePosts.length,
-  });
+  return mockResponse(createPageResponseFromItems(visiblePosts, { page, size, mapItem: toFeedPost }));
 }
 
 // TODO API: Spring Boot 연동 시 GET /api/posts/{postId} 로 교체

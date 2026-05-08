@@ -27,8 +27,8 @@ export function FollowListModal({ type, userId, onClose, onChanged }) {
       try {
         const request = type === "followers" ? getFollowers : getFollowing;
         const result = await request(userId, { page: targetPage, size: FOLLOW_LIST_PAGE_SIZE, query });
-        setUsers((current) => (mode === "append" ? [...current, ...result.users] : result.users));
-        setPage(result.page);
+        setUsers((current) => (mode === "append" ? [...current, ...result.content] : result.content));
+        setPage(result.pageRequest.page);
         setHasNext(result.hasNext);
       } catch {
         setError(t("usersLoadFailed"));
