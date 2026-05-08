@@ -30,8 +30,8 @@ export function PostDetailModal({ postId, onClose, onChanged }) {
     try {
       const [postResult, commentResult] = await Promise.all([getPostDetail(postId), getPostComments(postId, { page: 0, size: COMMENTS_PAGE_SIZE })]);
       setPost(postResult);
-      setComments(commentResult.comments);
-      setCommentPage(commentResult.page);
+      setComments(commentResult.content);
+      setCommentPage(commentResult.pageRequest.page);
       setCommentsHasNext(commentResult.hasNext);
     } catch {
       setError(t("postLoadFailed"));
@@ -44,8 +44,8 @@ export function PostDetailModal({ postId, onClose, onChanged }) {
     try {
       const nextPage = commentPage + 1;
       const result = await getPostComments(postId, { page: nextPage, size: COMMENTS_PAGE_SIZE });
-      setComments((prevComments) => [...prevComments, ...result.comments]);
-      setCommentPage(result.page);
+      setComments((prevComments) => [...prevComments, ...result.content]);
+      setCommentPage(result.pageRequest.page);
       setCommentsHasNext(result.hasNext);
     } catch {
       setError(t("commentsLoadFailed"));

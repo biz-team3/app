@@ -1,5 +1,6 @@
 import { canViewerSeeUser, db, findUserById, getCurrentUser, nextId } from "../mocks/db.js";
 import { mockError, mockResponse } from "./mockClient.js";
+import { createPageResponseFromItems } from "./pageResponse.js";
 
 function findPost(postId) {
   return db.posts.find((post) => post.postId === Number(postId));
@@ -51,16 +52,7 @@ export async function getPostComments(postId, { page = 0, size = 20 } = {}) {
     return mockError(error.message, error.status);
   }
   const allComments = db.comments.filter((comment) => comment.postId === Number(postId));
-  const start = page * size;
-  const comments = allComments.slice(start, start + size).map(toComment);
-  return mockResponse({
-    comments,
-    page,
-    size,
-    totalElements: allComments.length,
-    totalPages: Math.ceil(allComments.length / size),
-    hasNext: start + size < allComments.length,
-  });
+  return mockResponse(createPageResponseFromItems(allComments, { page, size, mapItem: toComment }));
 }
 
 // TODO API: Spring Boot 연동 시 POST /api/posts/{postId}/comments 204 No Content로 교체

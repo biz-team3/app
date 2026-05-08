@@ -40,9 +40,9 @@ export function ProfilePage() {
         getProfilePosts(nextProfile.userId, { page: 0, size: PROFILE_POST_PAGE_SIZE }),
         getProfileStories(nextProfile.userId),
       ]);
-      setPosts(postResult.posts);
+      setPosts(postResult.content);
       setStories(storyResult.stories);
-      setPostPage(postResult.page);
+      setPostPage(postResult.pageRequest.page);
       setPostsHasNext(postResult.hasNext);
     } catch {
       setPostsError(t("profileLoadFailed"));
@@ -60,8 +60,8 @@ export function ProfilePage() {
     try {
       const nextPage = postPage + 1;
       const result = await getProfilePosts(profile.userId, { page: nextPage, size: PROFILE_POST_PAGE_SIZE });
-      setPosts((current) => [...current, ...result.posts]);
-      setPostPage(result.page);
+      setPosts((current) => [...current, ...result.content]);
+      setPostPage(result.pageRequest.page);
       setPostsHasNext(result.hasNext);
     } catch {
       setPostsError(t("profilePostsLoadFailed"));

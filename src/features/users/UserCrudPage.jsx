@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Plus, RefreshCw, Save, Search, Trash2, UserRound } from "lucide-react";
+import { Plus, RefreshCw, Save, Trash2, UserRound } from "lucide-react";
 import { createUser, deleteUser, getUsers, updateUser } from "../../api/usersApi.js";
 import { useAuth } from "../../hooks/useAuth.js";
 
@@ -38,12 +38,11 @@ export function UserCrudPage() {
   const loadingRef = useRef(false);
   const requestIdRef = useRef(0);
   const [users, setUsers] = useState([]);
-  const [query, setQuery] = useState("");
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [page, setPage] = useState(0);
   const [hasNext, setHasNext] = useState(false);
-  const [totalElements, setTotalElements] = useState(0);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -54,7 +53,7 @@ export function UserCrudPage() {
     [selectedUserId, users],
   );
 
-  const loadUsers = useCallback(async ({ targetPage = 0, mode = "replace", nextQuery = query } = {}) => {
+  const loadUsers = useCallback(async ({ targetPage = 0, mode = "replace" } = {}) => {
     if (mode === "append" && loadingRef.current) return [];
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
@@ -62,14 +61,14 @@ export function UserCrudPage() {
     setLoading(true);
     setError("");
     try {
-      const result = await getUsers({ page: targetPage, size: USER_PAGE_SIZE, query: nextQuery });
+      const result = await getUsers({ page: targetPage, size: USER_PAGE_SIZE });
       if (requestId !== requestIdRef.current) return [];
 
-      setUsers((current) => (mode === "append" ? [...current, ...result.users] : result.users));
-      setPage(result.page);
+      setUsers((current) => (mode === "append" ? [...current, ...result.content] : result.content));
+      setPage(result.pageRequest.page);
       setHasNext(result.hasNext);
-      setTotalElements(result.totalElements);
-      return result.users;
+      setTotal(result.total);
+      return result.content;
     } catch (err) {
       if (requestId === requestIdRef.current) setError(err.message || "사용자를 불러오지 못했습니다.");
       return [];
@@ -79,13 +78,13 @@ export function UserCrudPage() {
         setLoading(false);
       }
     }
-  }, [query]);
+  }, []);
 
   useEffect(() => {
     setUsers([]);
     setPage(0);
     setHasNext(false);
-    setTotalElements(0);
+    setTotal(0);
     loadUsers({ targetPage: 0, mode: "replace" });
   }, [loadUsers]);
 
@@ -143,8 +142,7 @@ export function UserCrudPage() {
         setNotice("사용자를 수정했습니다.");
       } else {
         await createUser(form);
-        setQuery("");
-        const nextUsers = await loadUsers({ targetPage: 0, mode: "replace", nextQuery: "" });
+        const nextUsers = await loadUsers({ targetPage: 0, mode: "replace" });
         const createdUser = nextUsers.find((user) => user.username === form.username.trim());
         setSelectedUserId(createdUser?.userId || null);
         if (createdUser) setForm(userToForm(createdUser));
@@ -186,15 +184,6 @@ export function UserCrudPage() {
           <h1 className="mt-1 text-2xl font-bold">사용자 CRUD</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <label className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-lg border border-gray-200 px-3 text-sm dark:border-gray-800 sm:w-72">
-            <Search className="h-4 w-4 shrink-0 text-gray-400" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="사용자 검색"
-              className="min-w-0 flex-1 bg-transparent outline-none"
-            />
-          </label>
           <button
             type="button"
             onClick={() => loadUsers({ targetPage: 0, mode: "replace" })}
@@ -225,18 +214,15 @@ export function UserCrudPage() {
           <div className="flex h-12 items-center justify-between border-b border-gray-200 px-4 dark:border-gray-800">
             <h2 className="text-sm font-bold">사용자 목록</h2>
             <span className="text-xs font-semibold text-gray-500">
-              {loading && users.length === 0 ? "불러오는 중" : `${users.length}/${totalElements}명`}
+              {loading && users.length === 0 ? "불러오는 중" : `${users.length}/${total}명`}
             </span>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+            <table className="w-full min-w-[560px] border-collapse text-left text-sm">
               <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-gray-950">
                 <tr>
                   <th className="px-4 py-3 font-bold">User</th>
                   <th className="px-4 py-3 font-bold">Visibility</th>
-                  <th className="px-4 py-3 font-bold">Posts</th>
-                  <th className="px-4 py-3 font-bold">Followers</th>
-                  <th className="px-4 py-3 font-bold">Following</th>
                 </tr>
               </thead>
               <tbody>
@@ -258,22 +244,19 @@ export function UserCrudPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-xs font-bold">{visibilityLabel(user.accountVisibility)}</td>
-                      <td className="px-4 py-3">{user.postCount}</td>
-                      <td className="px-4 py-3">{user.followerCount}</td>
-                      <td className="px-4 py-3">{user.followingCount}</td>
                     </tr>
                   );
                 })}
                 {loading && users.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="px-4 py-12 text-center text-sm text-gray-500">
+                    <td colSpan="2" className="px-4 py-12 text-center text-sm text-gray-500">
                       사용자를 불러오는 중입니다.
                     </td>
                   </tr>
                 ) : null}
                 {!loading && users.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="px-4 py-12 text-center text-sm text-gray-500">
+                    <td colSpan="2" className="px-4 py-12 text-center text-sm text-gray-500">
                       검색 결과가 없습니다.
                     </td>
                   </tr>

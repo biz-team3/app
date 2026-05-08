@@ -1,5 +1,6 @@
 import { db, findPendingFollowRequest, findUserById, getCurrentUser, getProfileImage, getViewerRelation, nextId } from "../mocks/db.js";
 import { mockError, mockResponse } from "./mockClient.js";
+import { createPageResponseFromItems } from "./pageResponse.js";
 
 function toFollowUser(user) {
   const viewer = getCurrentUser();
@@ -24,17 +25,7 @@ function filterUsers(users, query = "") {
 }
 
 function paginate(users, page, size) {
-  const start = page * size;
-  const end = start + size;
-
-  return {
-    users: users.slice(start, end),
-    page,
-    size,
-    totalElements: users.length,
-    totalPages: Math.ceil(users.length / size),
-    hasNext: end < users.length,
-  };
+  return createPageResponseFromItems(users, { page, size });
 }
 
 // TODO API: Spring Boot 연동 시 GET /api/users/{userId}/followers?page={page}&size={size}&q={query} 로 교체
@@ -42,7 +33,7 @@ export async function getFollowers(userId, { page = 0, size = 20, query = "" } =
   const targetUserId = Number(userId);
   if (!findUserById(targetUserId)) return mockError("User not found", 404);
   const users = filterUsers(db.users.filter((user) => user.followingIds.includes(targetUserId)).map(toFollowUser), query);
-  return mockResponse({ userId: targetUserId, ...paginate(users, page, size) });
+  return mockResponse(paginate(users, page, size));
 }
 
 // TODO API: Spring Boot 연동 시 GET /api/users/{userId}/following?page={page}&size={size}&q={query} 로 교체
@@ -50,7 +41,7 @@ export async function getFollowing(userId, { page = 0, size = 20, query = "" } =
   const targetUser = findUserById(userId);
   if (!targetUser) return mockError("User not found", 404);
   const users = filterUsers(targetUser.followingIds.map((followingId) => findUserById(followingId)).filter(Boolean).map(toFollowUser), query);
-  return mockResponse({ userId: Number(userId), ...paginate(users, page, size) });
+  return mockResponse(paginate(users, page, size));
 }
 
 // TODO API: Spring Boot 연동 시 POST /api/follows/{targetUserId} 204 No Content로 교체
