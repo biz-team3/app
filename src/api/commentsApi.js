@@ -1,5 +1,5 @@
 import { canViewerSeeUser, db, findUserById, getCurrentUser, nextId } from "../mocks/db.js";
-import { mockError, mockResponse } from "./mockClient.js";
+import { apiRequest, mockError, mockResponse } from "./mockClient.js";
 import { createPageResponseFromItems } from "./pageResponse.js";
 
 function findPost(postId) {
@@ -55,24 +55,12 @@ export async function getPostComments(postId, { page = 0, size = 20 } = {}) {
   return mockResponse(createPageResponseFromItems(allComments, { page, size, mapItem: toComment }));
 }
 
-// TODO API: Spring Boot 연동 시 POST /api/posts/{postId}/comments 204 No Content로 교체
 export async function createComment(postId, payload) {
-  try {
-    ensurePostVisible(postId);
-  } catch (error) {
-    return mockError(error.message, error.status);
-  }
-  const comment = {
-    commentId: nextId(db.comments, "commentId"),
-    postId: Number(postId),
-    authorId: getCurrentUser().userId,
-    text: payload.text,
-    createdAtText: "now",
-  };
-  db.comments.push(comment);
-  const post = db.posts.find((item) => item.postId === Number(postId));
-  if (post) post.commentCount += 1;
-  return mockResponse(null);
+  const result = await apiRequest(`/api/posts/${postId}/comments`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return result ? toComment(result) : null;
 }
 
 // TODO API: Spring Boot 연동 시 PATCH /api/comments/{commentId} 204 No Content로 교체
