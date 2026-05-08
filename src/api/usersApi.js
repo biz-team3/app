@@ -58,7 +58,7 @@ export async function getUsers({ page = 0, size = 20 } = {}) {
 }
 
 export async function createUser(payload) {
-  const result = await apiRequest("/api/users", {
+  const result = await apiRequest("/api/user", {
     method: "POST",
     body: JSON.stringify(normalizeUserPayload(payload)),
   });
@@ -74,7 +74,7 @@ export async function getUserByUsername(username) {
 }
 
 export async function updateUser(userId, payload) {
-  const result = await apiRequest(`/api/users/${userId}`, {
+  const result = await apiRequest(`/api/user/${userId}`, {
     method: "PATCH",
     body: JSON.stringify(normalizeUserPayload(payload)),
   });
@@ -82,7 +82,7 @@ export async function updateUser(userId, payload) {
 }
 
 export async function deleteUser(userId) {
-  return apiRequest(`/api/users/${userId}`, {
+  return apiRequest(`/api/user/${userId}`, {
     method: "DELETE",
   });
 }
