@@ -97,25 +97,23 @@ export async function getPostDetail(postId) {
 
 // TODO API: Spring Boot 연동 시 POST /api/posts 204 No Content로 교체
 export async function createPost(payload) {
-  const viewer = getCurrentUser();
-  const postId = nextId(db.posts, "postId");
-  const caption = payload.caption || "";
-  const post = {
-    postId,
-    authorId: viewer.userId,
-    media: (payload.media || []).map((item, index) => toMediaItem(item, postId, index)),
-    caption,
-    translatedCaption: payload.translatedCaption || caption,
-    hashtags: payload.hashtags?.length ? payload.hashtags : extractHashtags(caption),
-    createdAtText: "now",
-    likeCount: 0,
-    commentCount: 0,
-    suggested: false,
-    likedByUserIds: [],
-    savedByUserIds: [],
-  };
-  db.posts.unshift(post);
-  return mockResponse(null);
+  const caption = payload.caption?.trim() || "";
+
+  await apiRequest("/api/posts", {
+    method: "POST",
+    body: JSON.stringify({
+      media: (payload.media || []).map((item, index) => ({
+        type: item.type || "IMAGE",
+        url: item.url,
+        sortOrder: item.sortOrder ?? index,
+        originalFileName: item.originalFileName || item.fileName || "",
+      })),
+      caption,
+      translatedCaption: payload.translatedCaption || caption,
+    }),
+  });
+
+  return null;
 }
 
 // TODO API: Spring Boot 연동 시 PATCH /api/posts/{postId} 204 No Content로 교체
