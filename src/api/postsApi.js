@@ -141,16 +141,13 @@ export async function updatePost(postId, payload) {
   return result;
 }
 
-// TODO API: Spring Boot 연동 시 DELETE /api/posts/{postId} 204 No Content로 교체
+// TODO: AccessToken 통한 권한 확인 필요
 export async function deletePost(postId) {
-  try {
-    ensurePostOwner(postId);
-  } catch (error) {
-    return mockError(error.message, error.status);
-  }
-  const index = db.posts.findIndex((post) => post.postId === Number(postId));
-  if (index >= 0) db.posts.splice(index, 1);
-  return mockResponse(null);
+  await apiRequest(`/api/posts/${postId}`, {
+    method: "DELETE",
+  });
+
+  return null;
 }
 
 // TODO API: Spring Boot 연동 시 POST /api/posts/{postId}/like 204 No Content로 교체
