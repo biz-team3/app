@@ -106,22 +106,27 @@ export async function createPost(payload) {
   return null;
 }
 
-// TODO API: Spring Boot 연동 시 PATCH /api/posts/{postId} 204 No Content로 교체
+// TODO API: userid는 AccessToken에서 받아와야함. jwt 이후, 수정필요.
 export async function updatePostCaption(postId, payload) {
-  let post;
-  try {
-    post = ensurePostOwner(postId);
-  } catch (error) {
-    return mockError(error.message, error.status);
-  }
-  const caption = payload.caption ?? post.caption;
-  Object.assign(post, {
-    caption,
-    translatedCaption: payload.translatedCaption || caption,
-    hashtags: payload.hashtags?.length ? payload.hashtags : extractHashtags(caption),
+  const response = await fetch(`/api/posts/${postId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      caption: payload.caption,
+      translatedCaption: payload.translatedCaption,
+    }),
   });
-  return mockResponse(null);
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || "게시글 수정에 실패했습니다.");
+  }
+
+  return null;
 }
+
 
 // TODO API: Spring Boot 연동 시 PUT /api/posts/{postId}/media 204 No Content로 교체
 export async function replacePostMedia(postId, payload) {
