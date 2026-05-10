@@ -1,5 +1,5 @@
 import { canViewerSeeUser, db, findUserById, getCurrentUser, getProfileImage, nextId } from "../mocks/db.js";
-import {apiRequest, mockError, mockResponse} from "./mockClient.js";
+import { apiRequest, mockError, mockResponse } from "./mockClient.js";
 import { createPageResponseFromItems } from "./pageResponse.js";
 
 function extractHashtags(text = "") {
@@ -35,16 +35,13 @@ function toFeedPost(post) {
     caption: post.caption,
     translatedCaption: post.translatedCaption,
     hashtags: post.hashtags || extractHashtags(post.caption),
-    createdAtText: post.createdAtText,
+    createdAt: post.createdAt,
     likeCount: post.likeCount,
     commentCount: post.commentCount,
     likedByMe: post.likedByUserIds.includes(viewer.userId),
     savedByMe: post.savedByUserIds.includes(viewer.userId),
     suggested: post.suggested,
-    viewerPermissions: {
-      canEdit: author.userId === viewer.userId,
-      canDelete: author.userId === viewer.userId,
-    },
+    isOwner: author.userId === viewer.userId,
   };
 }
 
