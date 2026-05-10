@@ -155,34 +155,21 @@ export async function deletePost(postId) {
   return null;
 }
 
-// TODO API: Spring Boot 연동 시 POST /api/posts/{postId}/like 204 No Content로 교체
+// TODO : AccessToken userId 처리 필요, postId = testPostId로 구현 후 수정필요.
 export async function likePost(postId) {
-  const viewer = getCurrentUser();
-  let post;
-  try {
-    post = ensurePostVisible(postId);
-  } catch (error) {
-    return mockError(error.message, error.status);
-  }
-  if (!post.likedByUserIds.includes(viewer.userId)) {
-    post.likedByUserIds.push(viewer.userId);
-    post.likeCount += 1;
-  }
-  return mockResponse(null);
+  await apiRequest(`/api/posts/${postId}/like`, {
+    method: "POST",
+  });
+
+  return null;
 }
 
-// TODO API: Spring Boot 연동 시 DELETE /api/posts/{postId}/like 204 No Content로 교체
 export async function unlikePost(postId) {
-  const viewer = getCurrentUser();
-  let post;
-  try {
-    post = ensurePostVisible(postId);
-  } catch (error) {
-    return mockError(error.message, error.status);
-  }
-  post.likedByUserIds = post.likedByUserIds.filter((userId) => userId !== viewer.userId);
-  post.likeCount = Math.max(0, post.likeCount - 1);
-  return mockResponse(null);
+  await apiRequest(`/api/posts/${postId}/like`, {
+    method: "DELETE",
+  });
+
+  return null;
 }
 
 // TODO API: Spring Boot 연동 시 POST /api/posts/{postId}/save 204 No Content로 교체
