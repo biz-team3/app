@@ -1,4 +1,4 @@
-import { canViewerSeeUser, db, findUserById, getCurrentUser, nextId } from "../mocks/db.js";
+import { canViewerSeeUser, db, findUserById, getCurrentUser } from "../mocks/db.js";
 import { apiRequest, mockError, mockResponse } from "./mockClient.js";
 import { createPageResponseFromItems } from "./pageResponse.js";
 
@@ -17,16 +17,8 @@ function ensurePostVisible(postId) {
   return post;
 }
 
-function ensureCommentOwner(commentId) {
-  const comment = db.comments.find((item) => item.commentId === Number(commentId));
-  if (!comment) throw Object.assign(new Error("Comment not found"), { status: 404 });
-  ensurePostVisible(comment.postId);
-  if (comment.authorId !== getCurrentUser().userId) throw Object.assign(new Error("Only the comment owner can change this comment"), { status: 403 });
-  return comment;
-}
-
 function toComment(comment) {
-  const author = findUserById(comment.authorId);
+  const author = comment.author || findUserById(comment.authorId);
   const viewer = getCurrentUser();
   return {
     commentId: comment.commentId,
@@ -36,11 +28,8 @@ function toComment(comment) {
       username: author.username,
     },
     text: comment.text,
-    createdAtText: comment.createdAtText,
-    viewerPermissions: {
-      canEdit: comment.authorId === viewer.userId,
-      canDelete: comment.authorId === viewer.userId,
-    },
+    createdAt: comment.createdAt,
+    isOwner: comment.isOwner ?? (author.userId === viewer.userId),
   };
 }
 
@@ -63,28 +52,17 @@ export async function createComment(postId, payload) {
   return result ? toComment(result) : null;
 }
 
-// TODO API: Spring Boot 연동 시 PATCH /api/comments/{commentId} 204 No Content로 교체
 export async function updateComment(commentId, payload) {
-  let comment;
-  try {
-    comment = ensureCommentOwner(commentId);
-  } catch (error) {
-    return mockError(error.message, error.status);
-  }
-  Object.assign(comment, payload);
-  return mockResponse(null);
+  const result = await apiRequest(`/api/posts/comments/${commentId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+  return result ? toComment(result) : null;
 }
 
-// TODO API: Spring Boot 연동 시 DELETE /api/comments/{commentId} 204 No Content로 교체
 export async function deleteComment(commentId) {
-  try {
-    ensureCommentOwner(commentId);
-  } catch (error) {
-    return mockError(error.message, error.status);
-  }
-  const index = db.comments.findIndex((comment) => comment.commentId === Number(commentId));
-  const [removed] = index >= 0 ? db.comments.splice(index, 1) : [];
-  const post = removed && db.posts.find((item) => item.postId === removed.postId);
-  if (post) post.commentCount = Math.max(0, post.commentCount - 1);
-  return mockResponse(null);
+  const result = await apiRequest(`/api/posts/comments/${commentId}`, {
+    method: "DELETE",
+  });
+  return result ? toComment(result) : null;
 }

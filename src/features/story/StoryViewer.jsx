@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Link } from "react-router-dom";
+import { formatRelativeTime } from "../../utils/format.js";
 
 export function StoryViewer({ groups, initialIndex = 0, onClose }) {
   const [groupIndex, setGroupIndex] = useState(initialIndex);
@@ -57,7 +58,7 @@ export function StoryViewer({ groups, initialIndex = 0, onClose }) {
           <Link to={`/profile/${group.username}`} onClick={onClose} className="flex w-fit items-center gap-3 text-white">
             <img src={group.profileImageUrl} alt="" className="h-9 w-9 rounded-full object-cover" />
             <span className="text-sm font-bold">{group.username}</span>
-            <span className="text-xs text-white/70">{story.createdAtText}</span>
+            <span className="text-xs text-white/70">{formatRelativeTime(story.createdAt)}</span>
           </Link>
         </div>
         <img src={story.imageUrl} alt="" className="h-full w-full object-cover" />

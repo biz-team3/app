@@ -1,3 +1,5 @@
+import { relativeCreatedAt } from "./time.js";
+
 export const notificationsMock = [
   {
     notificationId: 1,
@@ -6,7 +8,7 @@ export const notificationsMock = [
     actorImageUrl: "https://randomuser.me/api/portraits/men/65.jpg",
     actorCount: 3,
     targetImageUrl: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=80",
-    createdAtText: "2h",
+    createdAt: relativeCreatedAt("2h"),
     period: "today",
   },
   {
@@ -14,7 +16,7 @@ export const notificationsMock = [
     type: "FOLLOW",
     actorName: "june_04",
     actorImageUrl: "https://randomuser.me/api/portraits/men/90.jpg",
-    createdAtText: "2d",
+    createdAt: relativeCreatedAt("2d"),
     period: "week",
   },
   {
@@ -22,7 +24,7 @@ export const notificationsMock = [
     type: "FOLLOW",
     actorName: "seo_yun.daily",
     actorImageUrl: "https://randomuser.me/api/portraits/women/90.jpg",
-    createdAtText: "3d",
+    createdAt: relativeCreatedAt("3d"),
     period: "week",
     primary: true,
   },
