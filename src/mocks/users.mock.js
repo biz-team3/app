@@ -173,6 +173,7 @@ export const storiesMock = [
   { storyId: 1001, userId: 1, imageUrl: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=1080&h=1920&fit=crop", createdAt: relativeCreatedAt("30m")},
   { storyId: 1002, userId: 1, imageUrl: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=1080&h=1920&fit=crop", createdAt: relativeCreatedAt("22m")},
   { storyId: 1003, userId: 1, imageUrl: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=1080&h=1920&fit=crop", createdAt: relativeCreatedAt("9m")},
+  { storyId: 1004, userId: 1, imageUrl: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=1080&h=1920&fit=crop", createdAt: relativeCreatedAt("26h")},
   { storyId: 2001, userId: 2, imageUrl: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1080&h=1920&fit=crop", createdAt: relativeCreatedAt("12m")},
   { storyId: 2002, userId: 2, imageUrl: "https://images.unsplash.com/photo-1500375592092-40eb2168fd21?w=1080&h=1920&fit=crop", createdAt: relativeCreatedAt("8m")},
   { storyId: 2003, userId: 2, imageUrl: "https://images.unsplash.com/photo-1473116763249-2faaef81ccda?w=1080&h=1920&fit=crop", createdAt: relativeCreatedAt("4m")},
