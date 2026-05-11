@@ -122,7 +122,7 @@ export function FollowListModal({ type, userId, onClose, onChanged }) {
               {users.map((user) => (
                 <div key={user.userId} className="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-900">
                   <Link to={`/profile/${user.username}`} onClick={onClose} className="flex min-w-0 flex-1 items-center gap-3">
-                    <img src={user.profileImageUrl} alt="" className="h-11 w-11 rounded-full object-cover" />
+                    <img src={user.profileImg} alt="" className="h-11 w-11 rounded-full object-cover" />
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-bold">{user.username}</span>
                       <span className="block truncate text-sm text-gray-500">{user.name}</span>
