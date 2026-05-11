@@ -40,7 +40,6 @@ function toFeedPost(post) {
     commentCount: post.commentCount,
     likedByMe: post.likedByUserIds.includes(viewer.userId),
     savedByMe: post.savedByUserIds.includes(viewer.userId),
-    suggested: post.suggested,
     isOwner: author.userId === viewer.userId,
   };
 }

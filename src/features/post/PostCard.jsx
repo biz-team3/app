@@ -85,7 +85,6 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
               {post.author.username}
             </Link>
             <span className="ml-1 text-sm text-gray-400">• {postTimeText}</span>
-            {post.suggested && <p className="text-[11px] font-medium text-gray-500">{t("suggested")}</p>}
           </div>
         </div>
         {canManagePost && (
