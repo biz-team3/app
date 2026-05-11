@@ -14,27 +14,22 @@ const uploadedProfileImageUrls = [
   "https://images.unsplash.com/photo-1510227272981-87123e259b17?w=150&h=150&fit=crop",
 ];
 
-// TODO API: Spring Boot 연동 시 POST /api/media/posts multipart/form-data 로 교체
 export async function uploadPostMedia(files) {
-  return mockResponse({
-    media: files.map((file, index) => ({
-      type: "IMAGE",
-      url: uploadedMediaUrls[index % uploadedMediaUrls.length],
-      sortOrder: index,
-      originalFileName: file.name,
-      contentType: file.type,
-      fileSize: file.size,
-    })),
+  const formData = new FormData();
+  Array.from(files).forEach((file) => {
+    formData.append("files", file);
+  });
+  return await apiRequest("/api/posts/media", {
+    method: "POST",
+    body: formData,
   });
 }
 
-// TODO API: Spring Boot 연동 시 POST /api/media/profile-images multipart/form-data 로 교체
 export async function uploadProfileImage(file) {
-  const index = Math.abs((file?.name || "").split("").reduce((sum, char) => sum + char.charCodeAt(0), Date.now())) % uploadedProfileImageUrls.length;
-  return mockResponse({
-    imageUrl: uploadedProfileImageUrls[index],
-    originalFileName: file?.name || "",
-    contentType: file?.type || "",
-    fileSize: file?.size || 0,
+  const formData = new FormData();
+  formData.append("file", file);
+  return await apiRequest("/api/user/media/profile-images", {
+    method: "POST",
+    body: formData,
   });
 }

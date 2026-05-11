@@ -29,19 +29,25 @@ function toComment(comment) {
     },
     text: comment.text,
     createdAt: comment.createdAt,
-    isOwner: comment.isOwner ?? (author.userId === viewer.userId),
+    isOwner: comment.owner,
   };
 }
 
 // TODO API: Spring Boot 연동 시 GET /api/posts/{postId}/comments?page={page}&size={size} 로 교체
 export async function getPostComments(postId, { page = 0, size = 20 } = {}) {
-  try {
-    ensurePostVisible(postId);
-  } catch (error) {
-    return mockError(error.message, error.status);
-  }
-  const allComments = db.comments.filter((comment) => comment.postId === Number(postId));
-  return mockResponse(createPageResponseFromItems(allComments, { page, size, mapItem: toComment }));
+  const params = new URLSearchParams({
+    page: String(page),
+    size: String(size),
+  });
+  const result = await apiRequest(`/api/posts/${postId}/comments?${params.toString()}`);
+  const pageRequest = result.pageRequest || { page, size };
+  return {
+    content: (result.content || []).map(toComment),
+    pageRequest,
+    total: result.total ?? 0,
+    totalPages: result.totalPages ?? 0,
+    hasNext: Boolean(result.hasNext),
+  };
 }
 
 export async function createComment(postId, payload) {
