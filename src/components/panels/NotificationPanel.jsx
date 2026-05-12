@@ -19,7 +19,12 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [actionUserIds, setActionUserIds] = useState([]);
+  /**
+   * 알림 패널에서 follow / unfollow 요청을 보낸 뒤
+   * 아직 응답이 오지 않은 상대 유저 id 목록임.
+   * 버튼별 중복 클릭 방지용 UI 상태임.
+   */
+  const [pendingFollowUserIds, setPendingFollowUserIds] = useState([]);
 
   const load = async () => {
     setLoading(true);
@@ -71,7 +76,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
   const handleToggleFollow = async (notification) => {
     if (!notification.actorUserId || notification.viewerRelation === "SELF") return;
 
-    setActionUserIds((current) => [...current, notification.actorUserId]);
+    setPendingFollowUserIds((current) => [...current, notification.actorUserId]);
 
     try {
       if (notification.viewerRelation === "FOLLOWING" || notification.viewerRelation === "PENDING") {
@@ -83,7 +88,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
     } catch {
       setError(t("followActionFailed"));
     } finally {
-      setActionUserIds((current) => current.filter((userId) => userId !== notification.actorUserId));
+      setPendingFollowUserIds((current) => current.filter((userId) => userId !== notification.actorUserId));
     }
   };
 
@@ -136,7 +141,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
                           item={item}
                           t={t}
                           onToggleFollow={handleToggleFollow}
-                          followActionLoading={actionUserIds.includes(item.actorUserId)}
+                          followActionLoading={pendingFollowUserIds.includes(item.actorUserId)}
                         />
                       ))
                     : <p className="text-sm text-gray-500">{t("noTodayNotifications")}</p>}
@@ -150,7 +155,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
                           item={item}
                           t={t}
                           onToggleFollow={handleToggleFollow}
-                          followActionLoading={actionUserIds.includes(item.actorUserId)}
+                          followActionLoading={pendingFollowUserIds.includes(item.actorUserId)}
                         />
                       ))
                     : <p className="text-sm text-gray-500">{t("noWeekNotifications")}</p>}
