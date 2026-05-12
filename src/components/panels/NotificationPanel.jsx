@@ -192,7 +192,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => handleAccept(request.requestId)} className="rounded-lg bg-blue-500 px-4 py-1.5 text-sm font-bold text-white">{t("confirm")}</button>
+                      <button onClick={() => handleAccept(request.requestId)} className="rounded-lg bg-blue-500 px-4 py-1.5 text-sm font-bold text-white">{t("accept")}</button>
                       <button onClick={() => handleReject(request.requestId)} className="rounded-lg bg-gray-100 px-4 py-1.5 text-sm font-bold dark:bg-gray-800">{t("delete")}</button>
                     </div>
                   </div>
