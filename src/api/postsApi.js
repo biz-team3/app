@@ -68,8 +68,12 @@ function ensurePostOwner(postId) {
 
 // TODO API: Spring Boot 연동 시 GET /api/posts/feed?page={page}&size={size} 로 교체
 export async function getFeedPosts({ page = 0, size = 10 } = {}) {
-  const visiblePosts = db.posts.filter((post) => canViewerSeeUser(findUserById(post.authorId)));
-  return mockResponse(createPageResponseFromItems(visiblePosts, { page, size, mapItem: toFeedPost }));
+  const params = new URLSearchParams({
+    page: String(page),
+    size: String(size),
+  });
+
+  return apiRequest(`/api/posts/feed?${params.toString()}`);
 }
 
 // TODO API: Spring Boot 연동 시 GET /api/posts/{postId} 로 교체
@@ -92,7 +96,7 @@ export async function createPost(payload) {
         type: item.type || "IMAGE",
         url: item.url,
         sortOrder: item.sortOrder ?? index,
-        originalFileName: item.originalFileName || item.fileName || "",
+        originalFileName: item.originalFileName,
       })),
       caption,
       translatedCaption: payload.translatedCaption || caption,
