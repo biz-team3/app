@@ -25,8 +25,12 @@ export function AppShell() {
   const [notificationBadgeCount, setNotificationBadgeCount] = useState(0);
 
   const refreshNotificationSummary = useCallback(async () => {
-    const summary = await getNotificationSummary();
-    setNotificationBadgeCount(summary.totalBadgeCount);
+    try {
+      const summary = await getNotificationSummary();
+      setNotificationBadgeCount(summary.totalBadgeCount);
+    } catch {
+      setNotificationBadgeCount(0);
+    }
   }, []);
 
   useEffect(() => {

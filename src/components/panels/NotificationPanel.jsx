@@ -67,8 +67,8 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
 
   if (!isOpen) return null;
 
-  const todayNotifications = notifications.filter((item) => item.period === "today");
-  const weekNotifications = notifications.filter((item) => item.period === "week");
+  const todayNotifications = notifications.filter((item) => getNotificationPeriod(item.createdAt) === "today");
+  const weekNotifications = notifications.filter((item) => getNotificationPeriod(item.createdAt) === "week");
 
   return (
     <>
@@ -95,7 +95,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
               </div>
               <ChevronRight className="h-5 w-5 text-gray-400" />
             </button>
-            {loading && <p className="px-6 py-8 text-center text-sm font-semibold text-gray-400">{t("loadingNotifications")}</p>}
+          {loading && <p className="px-6 py-8 text-center text-sm font-semibold text-gray-400">{t("loadingNotifications")}</p>}
             {error && (
               <div className="px-6 py-8 text-center">
                 <p className="text-sm font-semibold text-red-500">{error}</p>
@@ -159,6 +159,10 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
 }
 
 function NotificationItem({ item, t }) {
+  const message = item.type === "LIKE"
+    ? t("likedByOthers", { count: item.actorCount || 0 })
+    : t("startedFollowing");
+
   return (
     <div className="mb-5 flex items-center justify-between gap-4">
       <div className="flex flex-1 items-center gap-3">
@@ -171,10 +175,8 @@ function NotificationItem({ item, t }) {
           )}
         </div>
         <p className="text-sm">
-          <span className="font-bold">{item.actorName}</span>
-          {item.type === "LIKE"
-            ? t("likedByOthers", { count: item.actorCount })
-            : t("startedFollowing")}
+          {item.actorName && <span className="font-bold">{item.actorName}</span>}
+          {message}
           <span className="ml-1 text-xs text-gray-500">{formatRelativeTime(item.createdAt)}</span>
         </p>
       </div>
@@ -190,6 +192,8 @@ function NotificationItem({ item, t }) {
 }
 
 function formatMutualText(request, t) {
+  if (!request.mutualText) return t("followRequestDesc");
+
   const matchMany = request.mutualText?.match(/^(.+)님 외 (\d+)명이/);
   if (matchMany) return t("mutualFollowers", { name: matchMany[1], count: matchMany[2] });
 
@@ -197,4 +201,13 @@ function formatMutualText(request, t) {
   if (matchOne) return t("mutualFollowerOne", { name: matchOne[1] });
 
   return request.mutualText;
+}
+
+function getNotificationPeriod(createdAt) {
+  const timestamp = Date.parse(createdAt);
+  if (Number.isNaN(timestamp)) return "week";
+
+  const diffMs = Math.max(0, Date.now() - timestamp);
+  if (diffMs < 24 * 60 * 60 * 1000) return "today";
+  return "week";
 }
