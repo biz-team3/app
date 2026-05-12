@@ -255,15 +255,21 @@ function NotificationItem({ item, t, onToggleFollow, followActionLoading }) {
 }
 
 function formatMutualText(request, t) {
-  if (!request.mutualText) return t("followRequestDesc");
+  // 공통 팔로워 정보가 없으면 기본 안내 문구를 보여줌
+  if (!request.mutualFollowerName || !request.mutualFollowerCount) {
+    return t("followRequestDesc");
+  }
 
-  const matchMany = request.mutualText?.match(/^(.+)님 외 (\d+)명이/);
-  if (matchMany) return t("mutualFollowers", { name: matchMany[1], count: matchMany[2] });
+  // count=1 이면 대표 username만 노출함
+  if (request.mutualFollowerCount === 1) {
+    return t("mutualFollowerOne", { name: request.mutualFollowerName });
+  }
 
-  const matchOne = request.mutualText?.match(/^(.+)님이/);
-  if (matchOne) return t("mutualFollowerOne", { name: matchOne[1] });
-
-  return request.mutualText;
+  // count>1 이면 대표 username 1명 + 나머지 인원 수로 문구를 조합함
+  return t("mutualFollowers", {
+    name: request.mutualFollowerName,
+    count: request.mutualFollowerCount - 1,
+  });
 }
 
 function getNotificationPeriod(createdAt) {
