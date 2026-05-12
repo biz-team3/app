@@ -129,7 +129,7 @@ export function FollowListModal({ type, userId, onClose, onChanged }) {
                     </span>
                   </Link>
 
-                  {!user.isViewer && (
+                  {user.viewerRelation !== "SELF" && (
                     <button
                       onClick={() => handleToggleFollow(user)}
                       className={`rounded-lg px-4 py-1.5 text-sm font-bold ${
