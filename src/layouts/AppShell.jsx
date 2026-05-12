@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { getNotificationSummary } from "../api/notificationsApi.js";
 import { CreatePostModal } from "../components/modals/CreatePostModal.jsx";
 import { CreateStoryModal } from "../components/modals/CreateStoryModal.jsx";
@@ -13,6 +13,7 @@ import { useAuth } from "../hooks/useAuth.js";
 import { useTheme } from "../hooks/useTheme.js";
 
 export function AppShell() {
+  const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
   const { toggleTheme } = useTheme();
@@ -36,6 +37,10 @@ export function AppShell() {
   useEffect(() => {
     refreshNotificationSummary();
   }, [refreshNotificationSummary]);
+
+  useEffect(() => {
+    setNotificationsOpen(false);
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     await logout();
