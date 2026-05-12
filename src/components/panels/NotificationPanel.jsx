@@ -19,11 +19,6 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  /**
-   * 알림 패널에서 follow / unfollow 요청을 보낸 뒤
-   * 아직 응답이 오지 않은 상대 유저 id 목록임.
-   * 버튼별 중복 클릭 방지용 UI 상태임.
-   */
   const [pendingFollowUserIds, setPendingFollowUserIds] = useState([]);
 
   const load = async () => {
