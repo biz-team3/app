@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { getFeedPosts } from "../../api/postsApi.js";
 import { getFeedStories } from "../../api/storiesApi.js";
 import { StoryViewer } from "../story/StoryViewer.jsx";
@@ -16,13 +16,13 @@ function getStoriesPerPage() {
 }
 
 export function FeedPage() {
-  const { feedVersion } = useOutletContext();
+  const { feedVersion, onCreateStory } = useOutletContext();
   const { t } = useLanguage();
   const [posts, setPosts] = useState([]);
   const [storyGroups, setStoryGroups] = useState([]);
   const [storyPage, setStoryPage] = useState(0);
   const [storiesPerPage, setStoriesPerPage] = useState(getStoriesPerPage);
-  const [viewer, setViewer] = useState(null);
+  const [viewerUserId, setViewerUserId] = useState(null);
   const [selectedPostId, setSelectedPostId] = useState(null);
   const [page, setPage] = useState(0);
   const [hasNext, setHasNext] = useState(true);
@@ -103,9 +103,18 @@ export function FeedPage() {
 
   const storyStart = storyPage * storiesPerPage;
   const visibleStoryGroups = storyGroups.slice(storyStart, storyStart + storiesPerPage);
+  const viewableStoryGroups = storyGroups.filter((group) => group.stories.length > 0);
+  const viewerInitialIndex = viewableStoryGroups.findIndex((group) => group.userId === viewerUserId);
   const storyPageCount = Math.ceil(storyGroups.length / storiesPerPage);
   const canPreviousStories = storyPage > 0;
   const canNextStories = storyPage < storyPageCount - 1;
+  const openStoryGroup = (group) => {
+    if (group.isOwner && group.stories.length === 0) {
+      onCreateStory?.();
+      return;
+    }
+    if (group.stories.length > 0) setViewerUserId(group.userId);
+  };
 
   return (
     <div className="mx-auto flex w-full max-w-[980px] justify-center px-2 pb-20 pt-4 md:pt-10">
@@ -113,14 +122,21 @@ export function FeedPage() {
         <section className="border-b border-gray-100 py-4 dark:border-gray-900">
           <div className="relative px-2">
             <div className="grid gap-x-3 gap-y-4" style={{ gridTemplateColumns: `repeat(${storiesPerPage}, minmax(0, 1fr))` }}>
-              {visibleStoryGroups.map((group, index) => (
-                <button key={group.userId} onClick={() => setViewer(storyStart + index)} className="flex min-w-0 flex-col items-center gap-1.5">
-                  <div className="rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-[2.5px]">
+              {visibleStoryGroups.map((group) => (
+                <button key={group.userId} onClick={() => openStoryGroup(group)} className="flex min-w-0 flex-col items-center gap-1.5">
+                  <div className={`rounded-full p-[2.5px] ${group.stories.length > 0 ? "bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600" : "bg-gray-200 dark:bg-gray-800"}`}>
                     <div className="rounded-full bg-white p-[2px] dark:bg-black">
-                      <img src={group.profileImageUrl} alt="" className="h-14 w-14 rounded-full object-cover sm:h-[58px] sm:w-[58px]" />
+                      <span className="relative block">
+                        <img src={group.profileImageUrl} alt="" className="h-14 w-14 rounded-full object-cover sm:h-[58px] sm:w-[58px]" />
+                        {group.isOwner && group.stories.length === 0 && (
+                          <span className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-blue-500 text-white dark:border-black">
+                            <Plus className="h-3.5 w-3.5" />
+                          </span>
+                        )}
+                      </span>
                     </div>
                   </div>
-                  <span className="w-16 truncate text-center text-[11px] text-gray-500">{group.isMe ? t("yourStory") : group.username}</span>
+                  <span className="w-16 truncate text-center text-[11px] text-gray-500">{group.isOwner ? t("yourStory") : group.username}</span>
                 </button>
               ))}
             </div>
@@ -168,7 +184,9 @@ export function FeedPage() {
           {loading ? t("loadingPosts") : hasNext || posts.length === 0 || error ? "" : t("allPostsLoaded")}
         </div>
       </div>
-      {viewer !== null && <StoryViewer groups={storyGroups} initialIndex={viewer} onClose={() => setViewer(null)} />}
+      {viewerUserId !== null && viewerInitialIndex >= 0 && (
+        <StoryViewer groups={viewableStoryGroups} initialIndex={viewerInitialIndex} onClose={() => setViewerUserId(null)} onDeleted={loadStories} />
+      )}
       {selectedPostId && <PostDetailModal postId={selectedPostId} onClose={() => setSelectedPostId(null)} onChanged={reloadFeed} />}
     </div>
   );

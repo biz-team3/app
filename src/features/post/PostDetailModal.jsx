@@ -5,6 +5,7 @@ import { createComment, deleteComment, getPostComments, updateComment } from "..
 import { getPostDetail, likePost, savePost, unlikePost, unsavePost } from "../../api/postsApi.js";
 import { useLanguage } from "../../hooks/useLanguage.js";
 import { ConfirmDialog } from "../../components/modals/ConfirmDialog.jsx";
+import { formatRelativeTime } from "../../utils/format.js";
 
 const COMMENTS_PAGE_SIZE = 20;
 
@@ -97,6 +98,7 @@ export function PostDetailModal({ postId, onClose, onChanged }) {
   }
 
   const mediaCount = post.media.length;
+  const postCreatedAtText = formatRelativeTime(post.createdAt);
 
   const toggleLike = async () => {
     setActionError("");
@@ -246,9 +248,9 @@ export function PostDetailModal({ postId, onClose, onChanged }) {
                       </p>
                     )}
                     <div className="mt-1 flex gap-3 text-xs text-gray-400">
-                      <span>{comment.createdAtText}</span>
-                      {comment.viewerPermissions?.canEdit && editingCommentId !== comment.commentId && <button onClick={() => startEditComment(comment)}>{t("edit")}</button>}
-                      {comment.viewerPermissions?.canDelete && <button onClick={() => setDeletingComment(comment)} className="text-red-400">{t("delete")}</button>}
+                      <span>{formatRelativeTime(comment.createdAt)}</span>
+                      {comment.isOwner && editingCommentId !== comment.commentId && <button onClick={() => startEditComment(comment)}>{t("edit")}</button>}
+                      {comment.isOwner && <button onClick={() => setDeletingComment(comment)} className="text-red-400">{t("delete")}</button>}
                     </div>
                   </div>
                 </div>
@@ -274,7 +276,7 @@ export function PostDetailModal({ postId, onClose, onChanged }) {
             </div>
             <div className="px-4 pb-3">
               <p className="text-sm font-bold">{post.likeCount.toLocaleString()}</p>
-              <p className="mt-1 text-xs text-gray-400">{post.createdAtText}</p>
+              <p className="mt-1 text-xs text-gray-400">{postCreatedAtText}</p>
             </div>
             <form onSubmit={handleCreateComment} className="flex items-center gap-3 border-t border-gray-100 px-4 py-3 dark:border-gray-800">
               <input value={commentText} onChange={(event) => setCommentText(event.target.value)} placeholder={t("addComment")} className="min-w-0 flex-1 bg-transparent text-sm outline-none" />

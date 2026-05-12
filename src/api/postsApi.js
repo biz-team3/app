@@ -1,5 +1,5 @@
 import { canViewerSeeUser, db, findUserById, getCurrentUser, getProfileImage, nextId } from "../mocks/db.js";
-import {apiRequest, mockError, mockResponse} from "./mockClient.js";
+import { apiRequest, mockError, mockResponse } from "./mockClient.js";
 import { createPageResponseFromItems } from "./pageResponse.js";
 
 function extractHashtags(text = "") {
@@ -35,16 +35,12 @@ function toFeedPost(post) {
     caption: post.caption,
     translatedCaption: post.translatedCaption,
     hashtags: post.hashtags || extractHashtags(post.caption),
-    createdAtText: post.createdAtText,
+    createdAt: post.createdAt,
     likeCount: post.likeCount,
     commentCount: post.commentCount,
     likedByMe: post.likedByUserIds.includes(viewer.userId),
     savedByMe: post.savedByUserIds.includes(viewer.userId),
-    suggested: post.suggested,
-    viewerPermissions: {
-      canEdit: author.userId === viewer.userId,
-      canDelete: author.userId === viewer.userId,
-    },
+    isOwner: author.userId === viewer.userId,
   };
 }
 
@@ -172,30 +168,19 @@ export async function unlikePost(postId) {
   return null;
 }
 
-// TODO API: Spring Boot 연동 시 POST /api/posts/{postId}/save 204 No Content로 교체
 export async function savePost(postId) {
-  const viewer = getCurrentUser();
-  let post;
-  try {
-    post = ensurePostVisible(postId);
-  } catch (error) {
-    return mockError(error.message, error.status);
-  }
-  if (!post.savedByUserIds.includes(viewer.userId)) {
-    post.savedByUserIds.push(viewer.userId);
-  }
-  return mockResponse(null);
+  await apiRequest(`/api/posts/${postId}/save`, {
+    method: "POST",
+    // body: JSON.stringify({}) //docs 빈요청 {}때문에 넣음
+  });
+
+  return null;
 }
 
-// TODO API: Spring Boot 연동 시 DELETE /api/posts/{postId}/save 204 No Content로 교체
 export async function unsavePost(postId) {
-  const viewer = getCurrentUser();
-  let post;
-  try {
-    post = ensurePostVisible(postId);
-  } catch (error) {
-    return mockError(error.message, error.status);
-  }
-  post.savedByUserIds = post.savedByUserIds.filter((userId) => userId !== viewer.userId);
-  return mockResponse(null);
+  await apiRequest(`/api/posts/${postId}/save`, {
+    method: "DELETE",
+  });
+
+  return null;
 }

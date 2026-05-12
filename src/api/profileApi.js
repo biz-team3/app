@@ -69,15 +69,6 @@ export async function getProfilePosts(userId, { page = 0, size = 12 } = {}) {
   return mockResponse(createPageResponseFromItems(allPosts, { page, size }));
 }
 
-// TODO API: Spring Boot 연동 시 GET /api/profiles/users/{userId}/stories 로 교체
-export async function getProfileStories(userId) {
-  const user = findUserById(userId);
-  if (!user) return mockError("User not found", 404);
-  const canViewContent = canViewerSeeUser(user);
-  const stories = canViewContent ? db.stories.filter((story) => story.userId === Number(userId)) : [];
-  return mockResponse({ userId: Number(userId), canViewContent, stories });
-}
-
 // TODO API: Spring Boot 연동 시 PATCH /api/profiles/users/{userId} 로 교체
 export async function updateProfile(userId, payload) {
   const user = findUserById(userId);

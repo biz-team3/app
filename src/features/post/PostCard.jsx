@@ -5,6 +5,7 @@ import { deletePost, likePost, savePost, unlikePost, unsavePost } from "../../ap
 import { useLanguage } from "../../hooks/useLanguage.js";
 import { ConfirmDialog } from "../../components/modals/ConfirmDialog.jsx";
 import { PostEditModal } from "../../components/modals/PostEditModal.jsx";
+import { formatRelativeTime } from "../../utils/format.js";
 
 export function PostCard({ post, onChanged, onOpenDetail }) {
   const { t } = useLanguage();
@@ -19,7 +20,8 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
 
   const mediaCount = post.media.length;
   const captionText = translated ? post.translatedCaption : post.caption;
-  const canManagePost = post.viewerPermissions?.canEdit || post.viewerPermissions?.canDelete;
+  const canManagePost = post.isOwner;
+  const postTimeText = formatRelativeTime(post.createdAt);
 
   useEffect(() => {
     setCurrentMedia(0);
@@ -82,8 +84,7 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
             <Link to={`/profile/${post.author.username}`} className="text-sm font-bold hover:underline">
               {post.author.username}
             </Link>
-            <span className="ml-1 text-sm text-gray-400">• {post.createdAtText}</span>
-            {post.suggested && <p className="text-[11px] font-medium text-gray-500">{t("suggested")}</p>}
+            <span className="ml-1 text-sm text-gray-400">• {postTimeText}</span>
           </div>
         </div>
         {canManagePost && (
@@ -93,7 +94,7 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
             </button>
             {menuOpen && (
               <div className="absolute right-0 top-8 z-20 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white text-sm shadow-xl dark:border-gray-800 dark:bg-gray-950">
-                {post.viewerPermissions?.canEdit && (
+                {post.isOwner && (
                   <button
                     onClick={() => {
                       setEditOpen(true);
@@ -104,7 +105,7 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
                     {t("editPost")}
                   </button>
                 )}
-                {post.viewerPermissions?.canDelete && (
+                {post.isOwner && (
                   <button
                     onClick={() => {
                       setDeletingPost(true);

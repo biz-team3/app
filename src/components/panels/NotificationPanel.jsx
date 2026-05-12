@@ -8,6 +8,7 @@ import {
   rejectFollowRequest,
 } from "../../api/notificationsApi.js";
 import { useLanguage } from "../../hooks/useLanguage.js";
+import { formatRelativeTime } from "../../utils/format.js";
 
 export function NotificationPanel({ isOpen, onClose, onChanged }) {
   const { t } = useLanguage();
@@ -174,7 +175,7 @@ function NotificationItem({ item, t }) {
           {item.type === "LIKE"
             ? t("likedByOthers", { count: item.actorCount })
             : t("startedFollowing")}
-          <span className="ml-1 text-xs text-gray-500">{item.createdAtText}</span>
+          <span className="ml-1 text-xs text-gray-500">{formatRelativeTime(item.createdAt)}</span>
         </p>
       </div>
       {item.targetImageUrl ? (

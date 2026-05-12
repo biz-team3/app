@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Grid, Images, Lock } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useOutletContext, useParams } from "react-router-dom";
 import { followUser, unfollowUser } from "../../api/followsApi.js";
-import { getMyProfile, getProfileByUsername, getProfilePosts, getProfileStories } from "../../api/profileApi.js";
+import { getMyProfile, getProfileByUsername, getProfilePosts } from "../../api/profileApi.js";
+import { getStoryBundle } from "../../api/storiesApi.js";
 import { StoryViewer } from "../story/StoryViewer.jsx";
 import { PostDetailModal } from "../post/PostDetailModal.jsx";
 import { FollowListModal } from "./FollowListModal.jsx";
@@ -14,6 +15,7 @@ const PROFILE_POST_PAGE_SIZE = 12;
 
 export function ProfilePage() {
   const { username } = useParams();
+  const { feedVersion, onCreateStory } = useOutletContext();
   const { t } = useLanguage();
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
@@ -38,7 +40,7 @@ export function ProfilePage() {
       setProfile(nextProfile);
       const [postResult, storyResult] = await Promise.all([
         getProfilePosts(nextProfile.userId, { page: 0, size: PROFILE_POST_PAGE_SIZE }),
-        getProfileStories(nextProfile.userId),
+        getStoryBundle(nextProfile.userId),
       ]);
       setPosts(postResult.content);
       setStories(storyResult.stories);
@@ -50,7 +52,7 @@ export function ProfilePage() {
       setPostsLoading(false);
       postsLoadingRef.current = false;
     }
-  }, [t, username]);
+  }, [feedVersion, t, username]);
 
   const loadNextPosts = useCallback(async () => {
     if (!profile || postsLoadingRef.current || !postsHasNext) return;
@@ -124,15 +126,23 @@ export function ProfilePage() {
       userId: profile.userId,
       username: profile.username,
       profileImageUrl: profile.profileImageUrl,
+      isOwner: profile.isOwner,
       stories,
     },
   ];
+  const handleProfileStoryClick = () => {
+    if (stories.length > 0) {
+      setViewerOpen(true);
+      return;
+    }
+    if (profile.isOwner) onCreateStory?.();
+  };
 
   return (
     <div className="min-h-screen overflow-auto bg-white px-4 py-6 pb-24 text-black dark:bg-black dark:text-white md:px-8">
       <div className="mx-auto flex w-full max-w-4xl flex-col items-center">
         <header className="mb-12 flex w-full flex-col items-center justify-center gap-8 md:flex-row md:gap-20">
-          <button onClick={() => stories.length > 0 && setViewerOpen(true)} className={`h-28 w-28 rounded-full p-1 md:h-40 md:w-40 ${stories.length > 0 ? "bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600" : "bg-gray-200 dark:bg-gray-800"}`}>
+          <button onClick={handleProfileStoryClick} className={`h-28 w-28 rounded-full p-1 md:h-40 md:w-40 ${stories.length > 0 ? "bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600" : "bg-gray-200 dark:bg-gray-800"}`}>
             <img src={profile.profileImageUrl} alt="" className="h-full w-full rounded-full border-4 border-white object-cover dark:border-black" />
           </button>
           <div className="flex flex-1 flex-col items-center text-center md:items-start md:text-left">
@@ -215,7 +225,7 @@ export function ProfilePage() {
           <div className="py-20 text-center text-gray-500">{t("noPosts")}</div>
         )}
       </div>
-      {viewerOpen && <StoryViewer groups={storyGroups} onClose={() => setViewerOpen(false)} />}
+      {viewerOpen && <StoryViewer groups={storyGroups} onClose={() => setViewerOpen(false)} onDeleted={load} />}
       {selectedPostId && <PostDetailModal postId={selectedPostId} onClose={() => setSelectedPostId(null)} onChanged={load} />}
       {followListType && <FollowListModal type={followListType} userId={profile.userId} onClose={() => setFollowListType(null)} onChanged={load} />}
       <ProfileEditModal isOpen={editOpen} onClose={() => setEditOpen(false)} onSaved={load} />
