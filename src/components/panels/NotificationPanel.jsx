@@ -19,6 +19,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  /** 알림 패널에서 follow / unfollow 요청 처리 중인 상대 유저 id 목록 */
   const [pendingFollowUserIds, setPendingFollowUserIds] = useState([]);
 
   const load = async () => {
