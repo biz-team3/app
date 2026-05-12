@@ -130,14 +130,20 @@ export async function updatePostCaption(postId, payload) {
 
 // TODO API: Spring Boot 연동 시 PUT /api/posts/{postId}/media 204 No Content로 교체
 export async function replacePostMedia(postId, payload) {
-  let post;
-  try {
-    post = ensurePostOwner(postId);
-  } catch (error) {
-    return mockError(error.message, error.status);
-  }
-  post.media = (payload.media || []).map((item, index) => toMediaItem(item, post.postId, index));
-  return mockResponse(null);
+  await apiRequest(`/api/posts/${postId}/media`, {
+    method: "PUT",
+    body: JSON.stringify({
+      media: (payload.media || []).map((item, index) => ({
+        mediaId: item.mediaId,
+        type: item.type || "IMAGE",
+        url: item.url,
+        sortOrder: index,
+        originalFileName: item.originalFileName || item.fileName || "unknown",
+      })),
+    }),
+  });
+
+  return null;
 }
 
 export async function updatePost(postId, payload) {
