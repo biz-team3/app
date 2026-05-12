@@ -1,17 +1,5 @@
-import { db, findUserById, getCurrentUser, getProfileImage } from "../mocks/db.js";
-import { mockError, mockResponse } from "./mockClient.js";
-
-function toFollowRequest(request) {
-  const requester = findUserById(request.requesterId);
-  return {
-    requestId: request.requestId,
-    requesterId: request.requesterId,
-    targetUserId: request.targetUserId,
-    username: requester?.username || request.username,
-    mutualText: request.mutualText,
-    imageUrl: requester ? getProfileImage(requester) : request.imageUrl,
-  };
-}
+import { db, getCurrentUser } from "../mocks/db.js";
+import { apiRequest, mockResponse } from "./mockClient.js";
 
 // TODO API: Spring Boot 연동 시 GET /api/notifications 로 교체
 export async function getNotifications() {
@@ -42,43 +30,23 @@ export async function getNotificationSummary() {
   });
 }
 
-// TODO API: Spring Boot 연동 시 GET /api/follow-requests 로 교체
 export async function getFollowRequests() {
-  const viewer = getCurrentUser();
-  return mockResponse({
-    requests: db.followRequests
-      .filter((request) => request.targetUserId === viewer.userId && request.status === "PENDING")
-      .map(toFollowRequest),
-  });
+  return apiRequest("/api/follow-requests");
 }
 
-// TODO API: Spring Boot 연동 시 POST /api/follow-requests/{requestId}/accept 204 No Content로 교체
 export async function acceptFollowRequest(requestId) {
-  const request = db.followRequests.find((item) => item.requestId === Number(requestId));
-  const viewer = getCurrentUser();
-  if (!request || request.targetUserId !== viewer.userId || request.status !== "PENDING") {
-    return mockError("Follow request not found", 404);
-  }
-  if (request) {
-    const requester = findUserById(request.requesterId);
-    const target = findUserById(request.targetUserId);
-    if (requester && target && !requester.followingIds.includes(target.userId)) {
-      requester.followingIds.push(target.userId);
-      requester.followingCount += 1;
-      target.followerCount += 1;
-    }
-  }
-  db.followRequests = db.followRequests.filter((request) => request.requestId !== Number(requestId));
-  return mockResponse(null);
+  await apiRequest(`/api/follow-requests/${requestId}/accept`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+
+  return null;
 }
 
-// TODO API: Spring Boot 연동 시 DELETE /api/follow-requests/{requestId} 204 No Content로 교체
 export async function rejectFollowRequest(requestId) {
-  const viewer = getCurrentUser();
-  const request = db.followRequests.find((item) => item.requestId === Number(requestId));
-  if (!request || request.targetUserId !== viewer.userId || request.status !== "PENDING") {
-    return mockError("Follow request not found", 404);
-  }
-  db.followRequests = db.followRequests.filter((request) => request.requestId !== Number(requestId));
-  return mockResponse(null);
+  await apiRequest(`/api/follow-requests/${requestId}`, {
+    method: "DELETE",
+  });
+
+  return null;
 }

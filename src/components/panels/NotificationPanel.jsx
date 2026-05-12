@@ -85,7 +85,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
             <button onClick={() => setMode("requests")} className="flex w-full items-center justify-between border-b border-gray-100 px-6 py-4 text-left hover:bg-gray-50 dark:border-gray-900 dark:hover:bg-gray-900">
               <div className="flex items-center gap-4">
                 <div className="relative">
-                  <img src={requests[0]?.imageUrl || "https://randomuser.me/api/portraits/women/27.jpg"} className="h-11 w-11 rounded-full object-cover" alt="" />
+                  <img src={requests[0]?.requesterProfileImg || "https://randomuser.me/api/portraits/women/27.jpg"} className="h-11 w-11 rounded-full object-cover" alt="" />
                   {requests.length > 0 && <span className="absolute -right-1 -top-1 rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{requests.length}</span>}
                 </div>
                 <div>
@@ -138,9 +138,9 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
                 requests.map((request) => (
                   <div key={request.requestId} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-900">
                     <div className="flex items-center gap-3">
-                      <img src={request.imageUrl} alt="" className="h-12 w-12 rounded-full object-cover" />
+                      <img src={request.requesterProfileImg} alt="" className="h-12 w-12 rounded-full object-cover" />
                       <div>
-                        <p className="text-sm font-bold">{request.username}</p>
+                        <p className="text-sm font-bold">{request.requesterName}</p>
                         <p className="w-36 truncate text-sm text-gray-500">{formatMutualText(request, t)}</p>
                       </div>
                     </div>

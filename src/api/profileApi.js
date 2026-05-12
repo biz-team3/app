@@ -1,58 +1,101 @@
 import {
-  canViewerSeeUser,
-  db,
-  findUserById,
-  findUserByUsername,
-  getCurrentUser,
-  getProfileImage,
-  getViewerRelation,
+	canViewerSeeUser,
+	db,
+	findUserById,
+	getCurrentUser,
+	getProfileImage,
 } from "../mocks/db.js";
-import { mockError, mockResponse } from "./mockClient.js";
+import { getFollowers, getFollowing } from "./followsApi.js";
+import { apiRequest, mockError, mockResponse } from "./mockClient.js";
 import { createPageResponseFromItems } from "./pageResponse.js";
 
-function toProfile(user) {
-  const viewer = getCurrentUser();
-  const canViewContent = canViewerSeeUser(user, viewer);
-  return {
-    userId: user.userId,
-    username: user.username,
-    name: user.name,
-    bio: user.bio,
-    website: user.website,
-    profileImageUrl: getProfileImage(user),
-    followerCount: user.followerCount,
-    followingCount: user.followingCount,
-    postCount: db.posts.filter((post) => post.authorId === user.userId).length,
-    accountVisibility: user.accountVisibility,
-    viewerRelation: getViewerRelation(user, viewer),
-    canViewContent,
-    isOwner: viewer.userId === user.userId,
-  };
+const USER_PAGE_SIZE = 1000;
+
+function normalizeUser(user) {
+	if (!user) return null;
+	return {
+		userId: user.userId,
+		username: user.username,
+		name: user.name,
+		bio: user.bio || "",
+		website: user.website || "",
+		profileImageUrl: user.profileImageUrl || user.profileImg || getProfileImage(user),
+		accountVisibility: user.accountVisibility || user.accountVis || "PUBLIC",
+	};
 }
 
-// TODO API: Spring Boot 연동 시 GET /api/profiles/me 로 교체
+async function getUsersPage() {
+	return apiRequest(`/api/user?page=0&size=${USER_PAGE_SIZE}`);
+}
+
+async function findApiUserById(userId) {
+	const result = await getUsersPage();
+	return (result.content || []).map(normalizeUser).find((user) => user.userId === Number(userId));
+}
+
+async function findApiUserByUsername(username) {
+	const result = await getUsersPage();
+	return (result.content || []).map(normalizeUser).find((user) => user.username === username);
+}
+
+async function countFollowList(loader, userId) {
+	const result = await loader(userId, { page: 0, size: 1 });
+	return result.total ?? result.content?.length ?? 0;
+}
+
+async function getViewerRelation(userId) {
+	const viewer = getCurrentUser();
+	if (viewer.userId === Number(userId)) return "SELF";
+
+	const following = await getFollowing(viewer.userId, { page: 0, size: USER_PAGE_SIZE });
+	const isFollowing = (following.content || []).some((user) => user.userId === Number(userId));
+	return isFollowing ? "FOLLOWING" : "NOT_FOLLOWING";
+}
+
+async function toProfile(user) {
+	const normalized = normalizeUser(user);
+	const viewer = getCurrentUser();
+	const [followerCount, followingCount, viewerRelation] = await Promise.all([
+		countFollowList(getFollowers, normalized.userId),
+		countFollowList(getFollowing, normalized.userId),
+		getViewerRelation(normalized.userId),
+	]);
+	const canViewContent = normalized.accountVisibility === "PUBLIC" || viewerRelation === "SELF" || viewerRelation === "FOLLOWING";
+
+	return {
+		...normalized,
+		followerCount,
+		followingCount,
+		postCount: db.posts.filter((post) => post.authorId === normalized.userId).length,
+		viewerRelation,
+		canViewContent,
+		isOwner: viewer.userId === normalized.userId,
+	};
+}
+
 export async function getMyProfile() {
-  return mockResponse(toProfile(getCurrentUser()));
+	const viewer = getCurrentUser();
+	const user = await findApiUserById(viewer.userId);
+	if (!user) return mockError("User not found", 404);
+	return toProfile(user);
 }
 
-// TODO API: Spring Boot 연동 시 GET /api/profiles/users/{userId} 로 교체
 export async function getProfileByUserId(userId) {
-  const user = findUserById(userId);
-  if (!user) return mockError("User not found", 404);
-  return mockResponse(toProfile(user));
+	const user = await findApiUserById(userId);
+	if (!user) return mockError("User not found", 404);
+	return toProfile(user);
 }
 
-// TODO API: Spring Boot 연동 시 GET /api/profiles/by-username/{username} 로 교체
 export async function getProfileByUsername(username) {
-  const user = findUserByUsername(username);
-  if (!user) return mockError("User not found", 404);
-  return mockResponse(toProfile(user));
+	const user = await findApiUserByUsername(username);
+	if (!user) return mockError("User not found", 404);
+	return toProfile(user);
 }
 
-// TODO API: Spring Boot 연동 시 GET /api/profiles/users/{userId}/posts?page={page}&size={size} 로 교체
+// TODO API: 게시물 목록 조회 API가 준비되면 Spring Boot 프로필 게시물 API로 교체
 export async function getProfilePosts(userId, { page = 0, size = 12 } = {}) {
-  const user = findUserById(userId);
-  if (!user) return mockError("User not found", 404);
+	const user = findUserById(userId);
+	if (!user) return mockError("User not found", 404);
   const canViewContent = canViewerSeeUser(user);
   const allPosts = canViewContent
     ? db.posts
@@ -66,24 +109,15 @@ export async function getProfilePosts(userId, { page = 0, size = 12 } = {}) {
           commentCount: post.commentCount,
         }))
     : [];
-  return mockResponse(createPageResponseFromItems(allPosts, { page, size }));
+	return mockResponse(createPageResponseFromItems(allPosts, { page, size }));
 }
 
-// TODO API: Spring Boot 연동 시 PATCH /api/profiles/users/{userId} 로 교체
 export async function updateProfile(userId, payload) {
-  const user = findUserById(userId);
-  const viewer = getCurrentUser();
-  if (!user) return mockError("User not found", 404);
-  if (user.userId !== viewer.userId) return mockError("Only the profile owner can change this profile", 403);
-  const allowedFields = [
-    "username",
-    "name",
-    "bio",
-    "website",
-    "accountVisibility",
-    "profileImageUrl",
-  ];
-  const nextPayload = Object.fromEntries(Object.entries(payload).filter(([key]) => allowedFields.includes(key)));
-  Object.assign(user, nextPayload);
-  return mockResponse(toProfile(user));
+	const viewer = getCurrentUser();
+	if (Number(userId) !== viewer.userId) return mockError("Only the profile owner can change this profile", 403);
+	await apiRequest(`/api/user/${userId}`, {
+		method: "PATCH",
+		body: JSON.stringify(payload),
+	});
+	return getProfileByUserId(userId);
 }
