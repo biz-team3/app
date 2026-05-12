@@ -62,7 +62,7 @@ export function StoryViewer({ groups, initialIndex = 0, onClose, onDeleted }) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black" onMouseDown={onClose}>
-      {story.isOwner && (
+      {group.isOwner && (
         <button
           onMouseDown={(event) => event.stopPropagation()}
           onClick={() => setDeletingStory(story)}

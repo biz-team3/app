@@ -15,7 +15,7 @@ const PROFILE_POST_PAGE_SIZE = 12;
 
 export function ProfilePage() {
   const { username } = useParams();
-  const { feedVersion, onCreateStory } = useOutletContext();
+  const { feedVersion } = useOutletContext();
   const { t } = useLanguage();
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
@@ -121,6 +121,7 @@ export function ProfilePage() {
       ? "bg-blue-500 text-white"
       : "bg-gray-100 text-black dark:bg-gray-800 dark:text-white";
 
+  const hasProfileStories = stories.length > 0;
   const storyGroups = [
     {
       userId: profile.userId,
@@ -131,18 +132,18 @@ export function ProfilePage() {
     },
   ];
   const handleProfileStoryClick = () => {
-    if (stories.length > 0) {
-      setViewerOpen(true);
-      return;
-    }
-    if (profile.isOwner) onCreateStory?.();
+    if (hasProfileStories) setViewerOpen(true);
   };
 
   return (
     <div className="min-h-screen overflow-auto bg-white px-4 py-6 pb-24 text-black dark:bg-black dark:text-white md:px-8">
       <div className="mx-auto flex w-full max-w-4xl flex-col items-center">
         <header className="mb-12 flex w-full flex-col items-center justify-center gap-8 md:flex-row md:gap-20">
-          <button onClick={handleProfileStoryClick} className={`h-28 w-28 rounded-full p-1 md:h-40 md:w-40 ${stories.length > 0 ? "bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600" : "bg-gray-200 dark:bg-gray-800"}`}>
+          <button
+            onClick={handleProfileStoryClick}
+            disabled={!hasProfileStories}
+            className={`h-28 w-28 rounded-full p-1 md:h-40 md:w-40 ${hasProfileStories ? "bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600" : "bg-gray-200 dark:bg-gray-800"}`}
+          >
             <img src={profile.profileImageUrl} alt="" className="h-full w-full rounded-full border-4 border-white object-cover dark:border-black" />
           </button>
           <div className="flex flex-1 flex-col items-center text-center md:items-start md:text-left">
