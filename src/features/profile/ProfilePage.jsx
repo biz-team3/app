@@ -15,7 +15,7 @@ const PROFILE_POST_PAGE_SIZE = 12;
 
 export function ProfilePage() {
   const { username } = useParams();
-  const { feedVersion } = useOutletContext();
+  const { feedVersion, registerPageRefreshHandler } = useOutletContext();
   const { t } = useLanguage();
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
@@ -76,6 +76,11 @@ export function ProfilePage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    registerPageRefreshHandler?.(load);
+    return () => registerPageRefreshHandler?.(null);
+  }, [load, registerPageRefreshHandler]);
 
   useEffect(() => {
     const sentinel = postSentinelRef.current;
