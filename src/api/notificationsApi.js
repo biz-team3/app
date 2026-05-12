@@ -31,12 +31,11 @@ export async function getNotificationSummary() {
 }
 
 export async function getFollowRequests() {
-  const requests = await apiRequest("/api/follows/requests");
-  return { requests };
+  return apiRequest("/api/follow-requests");
 }
 
 export async function acceptFollowRequest(requestId) {
-  await apiRequest(`/api/follows/requests/${requestId}/accept`, {
+  await apiRequest(`/api/follow-requests/${requestId}/accept`, {
     method: "POST",
     body: JSON.stringify({}),
   });
@@ -45,9 +44,8 @@ export async function acceptFollowRequest(requestId) {
 }
 
 export async function rejectFollowRequest(requestId) {
-  await apiRequest(`/api/follows/requests/${requestId}/reject`, {
-    method: "POST",
-    body: JSON.stringify({}),
+  await apiRequest(`/api/follow-requests/${requestId}`, {
+    method: "DELETE",
   });
 
   return null;
