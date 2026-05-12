@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, ChevronRight, Heart, X } from "lucide-react";
+import { Link } from "react-router-dom";
 import {
   acceptFollowRequest,
   getFollowRequests,
@@ -138,9 +139,13 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
                 requests.map((request) => (
                   <div key={request.requestId} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-900">
                     <div className="flex items-center gap-3">
-                      <img src={request.requesterProfileImg} alt="" className="h-12 w-12 rounded-full object-cover" />
+                      <Link to={`/profile/${request.requesterName}`}>
+                        <img src={request.requesterProfileImg} alt="" className="h-12 w-12 rounded-full object-cover" />
+                      </Link>
                       <div>
-                        <p className="text-sm font-bold">{request.requesterName}</p>
+                        <Link to={`/profile/${request.requesterName}`} className="text-sm font-bold hover:underline">
+                          {request.requesterName}
+                        </Link>
                         <p className="w-36 truncate text-sm text-gray-500">{formatMutualText(request, t)}</p>
                       </div>
                     </div>
@@ -166,16 +171,22 @@ function NotificationItem({ item, t }) {
   return (
     <div className="mb-5 flex items-center justify-between gap-4">
       <div className="flex flex-1 items-center gap-3">
-        <div className="relative shrink-0">
+        <Link to={`/profile/${item.actorUsername}`} className="relative shrink-0">
           <img src={item.actorImageUrl} alt="" className="h-11 w-11 rounded-full object-cover" />
           {item.type === "LIKE" && (
             <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-red-500 dark:border-black">
               <Heart className="h-3 w-3 fill-white text-white" />
             </span>
           )}
-        </div>
+        </Link>
         <p className="text-sm">
-          {item.actorName && <span className="font-bold">{item.actorName}</span>}
+          {item.actorUsername ? (
+            <Link to={`/profile/${item.actorUsername}`} className="font-bold hover:underline">
+              {item.actorName || item.actorUsername}
+            </Link>
+          ) : item.actorName ? (
+            <span className="font-bold">{item.actorName}</span>
+          ) : null}
           {message}
           <span className="ml-1 text-xs text-gray-500">{formatRelativeTime(item.createdAt)}</span>
         </p>
