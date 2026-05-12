@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, ChevronRight, Heart, X } from "lucide-react";
 import { Link } from "react-router-dom";
+import { followUser, unfollowUser } from "../../api/followsApi.js";
 import {
   acceptFollowRequest,
   getFollowRequests,
@@ -18,6 +19,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [actionUserIds, setActionUserIds] = useState([]);
 
   const load = async () => {
     setLoading(true);
@@ -66,6 +68,25 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
     }
   };
 
+  const handleToggleFollow = async (notification) => {
+    if (!notification.actorUserId || notification.viewerRelation === "SELF") return;
+
+    setActionUserIds((current) => [...current, notification.actorUserId]);
+
+    try {
+      if (notification.viewerRelation === "FOLLOWING" || notification.viewerRelation === "PENDING") {
+        await unfollowUser(notification.actorUserId);
+      } else {
+        await followUser(notification.actorUserId);
+      }
+      await load();
+    } catch {
+      setError(t("followActionFailed"));
+    } finally {
+      setActionUserIds((current) => current.filter((userId) => userId !== notification.actorUserId));
+    }
+  };
+
   if (!isOpen) return null;
 
   const todayNotifications = notifications.filter((item) => getNotificationPeriod(item.createdAt) === "today");
@@ -108,11 +129,31 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
               <>
                 <section className="px-6 py-5">
                   <h3 className="mb-4 font-bold">{t("today")}</h3>
-                  {todayNotifications.length > 0 ? todayNotifications.map((item) => <NotificationItem key={item.notificationId} item={item} t={t} />) : <p className="text-sm text-gray-500">{t("noTodayNotifications")}</p>}
+                  {todayNotifications.length > 0
+                    ? todayNotifications.map((item) => (
+                        <NotificationItem
+                          key={item.notificationId}
+                          item={item}
+                          t={t}
+                          onToggleFollow={handleToggleFollow}
+                          followActionLoading={actionUserIds.includes(item.actorUserId)}
+                        />
+                      ))
+                    : <p className="text-sm text-gray-500">{t("noTodayNotifications")}</p>}
                 </section>
                 <section className="border-t border-gray-100 px-6 py-5 dark:border-gray-900">
                   <h3 className="mb-4 font-bold">{t("thisWeek")}</h3>
-                  {weekNotifications.length > 0 ? weekNotifications.map((item) => <NotificationItem key={item.notificationId} item={item} t={t} />) : <p className="text-sm text-gray-500">{t("noWeekNotifications")}</p>}
+                  {weekNotifications.length > 0
+                    ? weekNotifications.map((item) => (
+                        <NotificationItem
+                          key={item.notificationId}
+                          item={item}
+                          t={t}
+                          onToggleFollow={handleToggleFollow}
+                          followActionLoading={actionUserIds.includes(item.actorUserId)}
+                        />
+                      ))
+                    : <p className="text-sm text-gray-500">{t("noWeekNotifications")}</p>}
                 </section>
               </>
             )}
@@ -163,10 +204,16 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
   );
 }
 
-function NotificationItem({ item, t }) {
+function NotificationItem({ item, t, onToggleFollow, followActionLoading }) {
   const message = item.type === "LIKE"
     ? t("likedByOthers", { count: item.actorCount || 0 })
     : t("startedFollowing");
+  const showFollowButton = !item.targetImageUrl && item.viewerRelation !== "SELF";
+  const followButtonLabel = item.viewerRelation === "FOLLOWING" ? t("following") : item.viewerRelation === "PENDING" ? t("requested") : t("follow");
+  const followButtonClass =
+    item.viewerRelation === "NOT_FOLLOWING"
+      ? "bg-blue-500 text-white"
+      : "bg-gray-100 text-black dark:bg-gray-800 dark:text-white";
 
   return (
     <div className="mb-5 flex items-center justify-between gap-4">
@@ -193,11 +240,15 @@ function NotificationItem({ item, t }) {
       </div>
       {item.targetImageUrl ? (
         <img src={item.targetImageUrl} alt="" className="h-11 w-11 rounded object-cover" />
-      ) : (
-        <button className={`rounded-lg px-4 py-1.5 text-sm font-bold ${item.primary ? "bg-blue-500 text-white" : "bg-gray-100 dark:bg-gray-800"}`}>
-          {item.primary ? t("follow") : t("following")}
+      ) : showFollowButton ? (
+        <button
+          onClick={() => onToggleFollow(item)}
+          disabled={followActionLoading}
+          className={`rounded-lg px-4 py-1.5 text-sm font-bold ${followButtonClass} ${followActionLoading ? "cursor-wait opacity-60" : ""}`}
+        >
+          {followButtonLabel}
         </button>
-      )}
+      ) : null}
     </div>
   );
 }
