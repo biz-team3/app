@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, ChevronRight, Heart, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { followUser, unfollowUser } from "../../api/followsApi.js";
 import {
   acceptFollowRequest,
@@ -15,6 +15,7 @@ import { PostDetailModal } from "../../features/post/PostDetailModal.jsx";
 
 export function NotificationPanel({ isOpen, onClose, onChanged }) {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [mode, setMode] = useState("notifications");
   const [notifications, setNotifications] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -24,6 +25,8 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
   /** 알림 패널에서 follow / unfollow 요청 처리 중인 상대 유저 id 목록 */
   const [pendingFollowUserIds, setPendingFollowUserIds] = useState([]);
 
+  const hasUnreadNotifications = notifications.some((notification) => notification.read !== true);
+
   const load = async () => {
     setLoading(true);
     setError("");
@@ -31,15 +34,6 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
       const [notificationResult, requestResult] = await Promise.all([getNotifications(), getFollowRequests()]);
       setNotifications(notificationResult.notifications);
       setRequests(requestResult.requests);
-      // 패널을 열 때 아직 안 읽은 알림 id만 모아 한 번에 읽음 처리함
-      const unreadNotificationIds = notificationResult.notifications
-        .filter((notification) => notification.read !== true)
-        .map((notification) => notification.notificationId);
-      if (unreadNotificationIds.length > 0) {
-        await markNotificationsRead({ notificationIds: unreadNotificationIds });
-        setNotifications((current) => current.map((notification) => ({ ...notification, read: true })));
-        onChanged?.();
-      }
     } catch {
       setError(t("notificationsLoadFailed"));
     } finally {
@@ -51,6 +45,24 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
     if (!isOpen) return;
     load();
   }, [isOpen]);
+
+  const handleNotificationClick = async () => {
+    if (!hasUnreadNotifications) return;
+
+    try {
+      await markNotificationsRead();
+      setNotifications((current) => current.map((notification) => ({ ...notification, read: true })));
+      await onChanged?.();
+    } catch {
+      setError(t("notificationsLoadFailed"));
+    }
+  };
+
+  const handleOpenProfile = async (username) => {
+    if (!username) return;
+    await handleNotificationClick();
+    navigate(`/profile/${username}`);
+  };
 
   const handleAccept = async (requestId) => {
     try {
@@ -78,12 +90,14 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
     setPendingFollowUserIds((current) => [...current, notification.actorUserId]);
 
     try {
+      await handleNotificationClick();
       if (notification.viewerRelation === "FOLLOWING" || notification.viewerRelation === "PENDING") {
         await unfollowUser(notification.actorUserId);
       } else {
         await followUser(notification.actorUserId);
       }
       await load();
+      await onChanged?.();
     } catch {
       setError(t("followActionFailed"));
     } finally {
@@ -140,6 +154,8 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
                           item={item}
                           t={t}
                           onOpenPostDetail={setSelectedPostId}
+                          onOpenProfile={handleOpenProfile}
+                          onNotificationClick={handleNotificationClick}
                           onToggleFollow={handleToggleFollow}
                           followActionLoading={pendingFollowUserIds.includes(item.actorUserId)}
                         />
@@ -155,6 +171,8 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
                           item={item}
                           t={t}
                           onOpenPostDetail={setSelectedPostId}
+                          onOpenProfile={handleOpenProfile}
+                          onNotificationClick={handleNotificationClick}
                           onToggleFollow={handleToggleFollow}
                           followActionLoading={pendingFollowUserIds.includes(item.actorUserId)}
                         />
@@ -211,7 +229,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
   );
 }
 
-function NotificationItem({ item, t, onOpenPostDetail, onToggleFollow, followActionLoading }) {
+function NotificationItem({ item, t, onOpenPostDetail, onOpenProfile, onNotificationClick, onToggleFollow, followActionLoading }) {
   const message = item.type === "LIKE"
     ? t("likedByOthers", { count: item.actorCount || 0 })
     : t("startedFollowing");
@@ -227,19 +245,19 @@ function NotificationItem({ item, t, onOpenPostDetail, onToggleFollow, followAct
   return (
     <div className="mb-5 flex items-center justify-between gap-4">
       <div className="flex flex-1 items-center gap-3">
-        <Link to={`/profile/${item.actorUsername}`} className="relative shrink-0">
+        <button type="button" onClick={() => onOpenProfile(item.actorUsername)} className="relative shrink-0">
           <img src={item.actorImageUrl} alt="" className="h-11 w-11 rounded-full object-cover" />
           {item.type === "LIKE" && (
             <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-red-500 dark:border-black">
               <Heart className="h-3 w-3 fill-white text-white" />
             </span>
           )}
-        </Link>
+        </button>
         <p className="text-sm">
           {item.actorUsername ? (
-            <Link to={`/profile/${item.actorUsername}`} className="font-bold hover:underline">
+            <button type="button" onClick={() => onOpenProfile(item.actorUsername)} className="font-bold hover:underline">
               {item.actorName || item.actorUsername}
-            </Link>
+            </button>
           ) : item.actorName ? (
             <span className="font-bold">{item.actorName}</span>
           ) : null}
@@ -248,13 +266,20 @@ function NotificationItem({ item, t, onOpenPostDetail, onToggleFollow, followAct
         </p>
       </div>
       {item.targetImageUrl && canOpenTargetPost ? (
-        <button type="button" onClick={() => onOpenPostDetail(targetPostId)} className="shrink-0 rounded">
+        <button
+          type="button"
+          onClick={async () => {
+            await onNotificationClick();
+            onOpenPostDetail(targetPostId);
+          }}
+          className="shrink-0 rounded"
+        >
           <img src={item.targetImageUrl} alt="" className="h-11 w-11 rounded object-cover" />
         </button>
       ) : item.targetImageUrl && item.actorUsername ? (
-        <Link to={`/profile/${item.actorUsername}`} className="shrink-0 rounded">
+        <button type="button" onClick={() => onOpenProfile(item.actorUsername)} className="shrink-0 rounded">
           <img src={item.targetImageUrl} alt="" className="h-11 w-11 rounded object-cover" />
-        </Link>
+        </button>
       ) : item.targetImageUrl ? (
         <img src={item.targetImageUrl} alt="" className="h-11 w-11 rounded object-cover" />
       ) : showFollowButton ? (
