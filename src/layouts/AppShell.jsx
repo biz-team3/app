@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { getNotificationSummary } from "../api/notificationsApi.js";
 import { CreatePostModal } from "../components/modals/CreatePostModal.jsx";
 import { CreateStoryModal } from "../components/modals/CreateStoryModal.jsx";
@@ -13,6 +13,7 @@ import { useAuth } from "../hooks/useAuth.js";
 import { useTheme } from "../hooks/useTheme.js";
 
 export function AppShell() {
+  const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
   const { toggleTheme } = useTheme();
@@ -23,15 +24,24 @@ export function AppShell() {
   const [profileEditOpen, setProfileEditOpen] = useState(false);
   const [feedVersion, setFeedVersion] = useState(0);
   const [notificationBadgeCount, setNotificationBadgeCount] = useState(0);
+  const pageRefreshHandlerRef = useRef(null);
 
   const refreshNotificationSummary = useCallback(async () => {
-    const summary = await getNotificationSummary();
-    setNotificationBadgeCount(summary.totalBadgeCount);
+    try {
+      const summary = await getNotificationSummary();
+      setNotificationBadgeCount(summary.totalBadgeCount);
+    } catch {
+      setNotificationBadgeCount(0);
+    }
   }, []);
 
   useEffect(() => {
     refreshNotificationSummary();
   }, [refreshNotificationSummary]);
+
+  useEffect(() => {
+    setNotificationsOpen(false);
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     await logout();
@@ -41,6 +51,15 @@ export function AppShell() {
   const handleCreated = () => {
     setFeedVersion((value) => value + 1);
   };
+
+  const registerPageRefreshHandler = useCallback((handler) => {
+    pageRefreshHandlerRef.current = handler;
+  }, []);
+
+  const handleNotificationChanged = useCallback(async () => {
+    await refreshNotificationSummary();
+    await pageRefreshHandlerRef.current?.();
+  }, [refreshNotificationSummary]);
 
   return (
     <div className="min-h-screen bg-white text-gray-950 transition-colors duration-300 dark:bg-black dark:text-gray-100">
@@ -54,10 +73,17 @@ export function AppShell() {
         onLogout={handleLogout}
       />
       <main className="min-h-screen pt-14 md:ml-20 md:pt-0 xl:ml-[244px]">
-        <Outlet context={{ feedVersion, onCreated: handleCreated, onCreateStory: () => setCreateStoryOpen(true) }} />
+        <Outlet
+          context={{
+            feedVersion,
+            onCreated: handleCreated,
+            onCreateStory: () => setCreateStoryOpen(true),
+            registerPageRefreshHandler,
+          }}
+        />
       </main>
       <BottomNav onCreate={() => setCreateTypeOpen(true)} />
-      <NotificationPanel isOpen={notificationsOpen} onClose={() => setNotificationsOpen(false)} onChanged={refreshNotificationSummary} />
+      <NotificationPanel isOpen={notificationsOpen} onClose={() => setNotificationsOpen(false)} onChanged={handleNotificationChanged} />
       <CreateTypeModal
         isOpen={createTypeOpen}
         onClose={() => setCreateTypeOpen(false)}

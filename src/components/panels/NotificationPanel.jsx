@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, ChevronRight, Heart, X } from "lucide-react";
+import { Link } from "react-router-dom";
+import { followUser, unfollowUser } from "../../api/followsApi.js";
 import {
   acceptFollowRequest,
   getFollowRequests,
@@ -17,6 +19,8 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  /** 알림 패널에서 follow / unfollow 요청 처리 중인 상대 유저 id 목록 */
+  const [pendingFollowUserIds, setPendingFollowUserIds] = useState([]);
 
   const load = async () => {
     setLoading(true);
@@ -65,10 +69,29 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
     }
   };
 
+  const handleToggleFollow = async (notification) => {
+    if (!notification.actorUserId || notification.viewerRelation === "SELF") return;
+
+    setPendingFollowUserIds((current) => [...current, notification.actorUserId]);
+
+    try {
+      if (notification.viewerRelation === "FOLLOWING" || notification.viewerRelation === "PENDING") {
+        await unfollowUser(notification.actorUserId);
+      } else {
+        await followUser(notification.actorUserId);
+      }
+      await load();
+    } catch {
+      setError(t("followActionFailed"));
+    } finally {
+      setPendingFollowUserIds((current) => current.filter((userId) => userId !== notification.actorUserId));
+    }
+  };
+
   if (!isOpen) return null;
 
-  const todayNotifications = notifications.filter((item) => item.period === "today");
-  const weekNotifications = notifications.filter((item) => item.period === "week");
+  const todayNotifications = notifications.filter((item) => getNotificationPeriod(item.createdAt) === "today");
+  const weekNotifications = notifications.filter((item) => getNotificationPeriod(item.createdAt) === "week");
 
   return (
     <>
@@ -95,7 +118,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
               </div>
               <ChevronRight className="h-5 w-5 text-gray-400" />
             </button>
-            {loading && <p className="px-6 py-8 text-center text-sm font-semibold text-gray-400">{t("loadingNotifications")}</p>}
+          {loading && <p className="px-6 py-8 text-center text-sm font-semibold text-gray-400">{t("loadingNotifications")}</p>}
             {error && (
               <div className="px-6 py-8 text-center">
                 <p className="text-sm font-semibold text-red-500">{error}</p>
@@ -107,11 +130,31 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
               <>
                 <section className="px-6 py-5">
                   <h3 className="mb-4 font-bold">{t("today")}</h3>
-                  {todayNotifications.length > 0 ? todayNotifications.map((item) => <NotificationItem key={item.notificationId} item={item} t={t} />) : <p className="text-sm text-gray-500">{t("noTodayNotifications")}</p>}
+                  {todayNotifications.length > 0
+                    ? todayNotifications.map((item) => (
+                        <NotificationItem
+                          key={item.notificationId}
+                          item={item}
+                          t={t}
+                          onToggleFollow={handleToggleFollow}
+                          followActionLoading={pendingFollowUserIds.includes(item.actorUserId)}
+                        />
+                      ))
+                    : <p className="text-sm text-gray-500">{t("noTodayNotifications")}</p>}
                 </section>
                 <section className="border-t border-gray-100 px-6 py-5 dark:border-gray-900">
                   <h3 className="mb-4 font-bold">{t("thisWeek")}</h3>
-                  {weekNotifications.length > 0 ? weekNotifications.map((item) => <NotificationItem key={item.notificationId} item={item} t={t} />) : <p className="text-sm text-gray-500">{t("noWeekNotifications")}</p>}
+                  {weekNotifications.length > 0
+                    ? weekNotifications.map((item) => (
+                        <NotificationItem
+                          key={item.notificationId}
+                          item={item}
+                          t={t}
+                          onToggleFollow={handleToggleFollow}
+                          followActionLoading={pendingFollowUserIds.includes(item.actorUserId)}
+                        />
+                      ))
+                    : <p className="text-sm text-gray-500">{t("noWeekNotifications")}</p>}
                 </section>
               </>
             )}
@@ -138,14 +181,18 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
                 requests.map((request) => (
                   <div key={request.requestId} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-900">
                     <div className="flex items-center gap-3">
-                      <img src={request.requesterProfileImg} alt="" className="h-12 w-12 rounded-full object-cover" />
+                      <Link to={`/profile/${request.requesterName}`}>
+                        <img src={request.requesterProfileImg} alt="" className="h-12 w-12 rounded-full object-cover" />
+                      </Link>
                       <div>
-                        <p className="text-sm font-bold">{request.requesterName}</p>
+                        <Link to={`/profile/${request.requesterName}`} className="text-sm font-bold hover:underline">
+                          {request.requesterName}
+                        </Link>
                         <p className="w-36 truncate text-sm text-gray-500">{formatMutualText(request, t)}</p>
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => handleAccept(request.requestId)} className="rounded-lg bg-blue-500 px-4 py-1.5 text-sm font-bold text-white">{t("confirm")}</button>
+                      <button onClick={() => handleAccept(request.requestId)} className="rounded-lg bg-blue-500 px-4 py-1.5 text-sm font-bold text-white">{t("accept")}</button>
                       <button onClick={() => handleReject(request.requestId)} className="rounded-lg bg-gray-100 px-4 py-1.5 text-sm font-bold dark:bg-gray-800">{t("delete")}</button>
                     </div>
                   </div>
@@ -158,43 +205,78 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
   );
 }
 
-function NotificationItem({ item, t }) {
+function NotificationItem({ item, t, onToggleFollow, followActionLoading }) {
+  const message = item.type === "LIKE"
+    ? t("likedByOthers", { count: item.actorCount || 0 })
+    : t("startedFollowing");
+  const showFollowButton = !item.targetImageUrl && item.viewerRelation !== "SELF";
+  const followButtonLabel = item.viewerRelation === "FOLLOWING" ? t("following") : item.viewerRelation === "PENDING" ? t("requested") : t("follow");
+  const followButtonClass =
+    item.viewerRelation === "NOT_FOLLOWING"
+      ? "bg-blue-500 text-white"
+      : "bg-gray-100 text-black dark:bg-gray-800 dark:text-white";
+
   return (
     <div className="mb-5 flex items-center justify-between gap-4">
       <div className="flex flex-1 items-center gap-3">
-        <div className="relative shrink-0">
+        <Link to={`/profile/${item.actorUsername}`} className="relative shrink-0">
           <img src={item.actorImageUrl} alt="" className="h-11 w-11 rounded-full object-cover" />
           {item.type === "LIKE" && (
             <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-red-500 dark:border-black">
               <Heart className="h-3 w-3 fill-white text-white" />
             </span>
           )}
-        </div>
+        </Link>
         <p className="text-sm">
-          <span className="font-bold">{item.actorName}</span>
-          {item.type === "LIKE"
-            ? t("likedByOthers", { count: item.actorCount })
-            : t("startedFollowing")}
+          {item.actorUsername ? (
+            <Link to={`/profile/${item.actorUsername}`} className="font-bold hover:underline">
+              {item.actorName || item.actorUsername}
+            </Link>
+          ) : item.actorName ? (
+            <span className="font-bold">{item.actorName}</span>
+          ) : null}
+          {message}
           <span className="ml-1 text-xs text-gray-500">{formatRelativeTime(item.createdAt)}</span>
         </p>
       </div>
       {item.targetImageUrl ? (
         <img src={item.targetImageUrl} alt="" className="h-11 w-11 rounded object-cover" />
-      ) : (
-        <button className={`rounded-lg px-4 py-1.5 text-sm font-bold ${item.primary ? "bg-blue-500 text-white" : "bg-gray-100 dark:bg-gray-800"}`}>
-          {item.primary ? t("follow") : t("following")}
+      ) : showFollowButton ? (
+        <button
+          onClick={() => onToggleFollow(item)}
+          disabled={followActionLoading}
+          className={`rounded-lg px-4 py-1.5 text-sm font-bold ${followButtonClass} ${followActionLoading ? "cursor-wait opacity-60" : ""}`}
+        >
+          {followButtonLabel}
         </button>
-      )}
+      ) : null}
     </div>
   );
 }
 
 function formatMutualText(request, t) {
-  const matchMany = request.mutualText?.match(/^(.+)님 외 (\d+)명이/);
-  if (matchMany) return t("mutualFollowers", { name: matchMany[1], count: matchMany[2] });
+  // 공통 팔로워 정보가 없으면 기본 안내 문구를 보여줌
+  if (!request.mutualFollowerName || !request.mutualFollowerCount) {
+    return t("followRequestDesc");
+  }
 
-  const matchOne = request.mutualText?.match(/^(.+)님이/);
-  if (matchOne) return t("mutualFollowerOne", { name: matchOne[1] });
+  // count=1 이면 대표 username만 노출함
+  if (request.mutualFollowerCount === 1) {
+    return t("mutualFollowerOne", { name: request.mutualFollowerName });
+  }
 
-  return request.mutualText;
+  // count>1 이면 대표 username 1명 + 나머지 인원 수로 문구를 조합함
+  return t("mutualFollowers", {
+    name: request.mutualFollowerName,
+    count: request.mutualFollowerCount - 1,
+  });
+}
+
+function getNotificationPeriod(createdAt) {
+  const timestamp = Date.parse(createdAt);
+  if (Number.isNaN(timestamp)) return "week";
+
+  const diffMs = Math.max(0, Date.now() - timestamp);
+  if (diffMs < 24 * 60 * 60 * 1000) return "today";
+  return "week";
 }
