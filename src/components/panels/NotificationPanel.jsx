@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, ChevronRight, Heart, X } from "lucide-react";
+import { ArrowLeft, ChevronRight, Heart, MessageCircle, X } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { followUser, unfollowUser } from "../../api/followsApi.js";
 import {
@@ -230,12 +230,10 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
 }
 
 function NotificationItem({ item, t, onOpenPostDetail, onOpenProfile, onNotificationClick, onToggleFollow, followActionLoading }) {
-  const message = item.type === "LIKE"
-    ? t("likedByOthers", { count: item.actorCount || 0 })
-    : t("startedFollowing");
+  const message = getNotificationMessage(item, t);
   const targetPostId = Number(item.targetId);
   const canOpenTargetPost = Number.isFinite(targetPostId);
-  const showFollowButton = !item.targetImageUrl && item.viewerRelation !== "SELF";
+  const showFollowButton = item.type === "FOLLOW" && !item.targetImageUrl && item.viewerRelation !== "SELF";
   const followButtonLabel = item.viewerRelation === "FOLLOWING" ? t("following") : item.viewerRelation === "PENDING" ? t("requested") : t("follow");
   const followButtonClass =
     item.viewerRelation === "NOT_FOLLOWING"
@@ -250,6 +248,11 @@ function NotificationItem({ item, t, onOpenPostDetail, onOpenProfile, onNotifica
           {item.type === "LIKE" && (
             <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-red-500 dark:border-black">
               <Heart className="h-3 w-3 fill-white text-white" />
+            </span>
+          )}
+          {item.type === "COMMENT" && (
+            <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-blue-500 dark:border-black">
+              <MessageCircle className="h-3 w-3 fill-white text-white" />
             </span>
           )}
         </button>
@@ -293,6 +296,15 @@ function NotificationItem({ item, t, onOpenPostDetail, onOpenProfile, onNotifica
       ) : null}
     </div>
   );
+}
+
+function getNotificationMessage(item, t) {
+  // 서버 notification_type과 프론트 문구를 명시적으로 매핑함.
+  // 새 알림 타입을 추가할 때 이 분기를 함께 확장해야 잘못된 기본 문구 노출을 막을 수 있음.
+  if (item.type === "LIKE") return t("likedByOthers", { count: item.actorCount || 0 });
+  if (item.type === "COMMENT") return t("commentedOnPost");
+  if (item.type === "FOLLOW") return t("startedFollowing");
+  return "";
 }
 
 function formatMutualText(request, t) {
