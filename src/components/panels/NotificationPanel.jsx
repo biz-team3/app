@@ -11,6 +11,7 @@ import {
 } from "../../api/notificationsApi.js";
 import { useLanguage } from "../../hooks/useLanguage.js";
 import { formatRelativeTime } from "../../utils/format.js";
+import { PostDetailModal } from "../../features/post/PostDetailModal.jsx";
 
 export function NotificationPanel({ isOpen, onClose, onChanged }) {
   const { t } = useLanguage();
@@ -19,6 +20,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [selectedPostId, setSelectedPostId] = useState(null);
   /** 알림 패널에서 follow / unfollow 요청 처리 중인 상대 유저 id 목록 */
   const [pendingFollowUserIds, setPendingFollowUserIds] = useState([]);
 
@@ -137,6 +139,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
                           key={item.notificationId}
                           item={item}
                           t={t}
+                          onOpenPostDetail={setSelectedPostId}
                           onToggleFollow={handleToggleFollow}
                           followActionLoading={pendingFollowUserIds.includes(item.actorUserId)}
                         />
@@ -151,6 +154,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
                           key={item.notificationId}
                           item={item}
                           t={t}
+                          onOpenPostDetail={setSelectedPostId}
                           onToggleFollow={handleToggleFollow}
                           followActionLoading={pendingFollowUserIds.includes(item.actorUserId)}
                         />
@@ -202,14 +206,16 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
           </>
         )}
       </aside>
+      {selectedPostId && <PostDetailModal postId={selectedPostId} onClose={() => setSelectedPostId(null)} onChanged={onChanged} />}
     </>
   );
 }
 
-function NotificationItem({ item, t, onToggleFollow, followActionLoading }) {
+function NotificationItem({ item, t, onOpenPostDetail, onToggleFollow, followActionLoading }) {
   const message = item.type === "LIKE"
     ? t("likedByOthers", { count: item.actorCount || 0 })
     : t("startedFollowing");
+  const canOpenTargetPost = item.targetType === "POST" && item.targetId;
   const showFollowButton = !item.targetImageUrl && item.viewerRelation !== "SELF";
   const followButtonLabel = item.viewerRelation === "FOLLOWING" ? t("following") : item.viewerRelation === "PENDING" ? t("requested") : t("follow");
   const followButtonClass =
@@ -240,7 +246,11 @@ function NotificationItem({ item, t, onToggleFollow, followActionLoading }) {
           <span className="ml-1 text-xs text-gray-500">{formatRelativeTime(item.createdAt)}</span>
         </p>
       </div>
-      {item.targetImageUrl ? (
+      {item.targetImageUrl && canOpenTargetPost ? (
+        <button type="button" onClick={() => onOpenPostDetail(item.targetId)} className="shrink-0 rounded">
+          <img src={item.targetImageUrl} alt="" className="h-11 w-11 rounded object-cover" />
+        </button>
+      ) : item.targetImageUrl ? (
         <img src={item.targetImageUrl} alt="" className="h-11 w-11 rounded object-cover" />
       ) : showFollowButton ? (
         <button
