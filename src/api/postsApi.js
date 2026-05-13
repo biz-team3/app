@@ -76,7 +76,6 @@ export async function getFeedPosts({ page = 0, size = 10 } = {}) {
   return apiRequest(`/api/posts/feed?${params.toString()}`);
 }
 
-// TODO API: Spring Boot 연동 시 GET /api/posts/{postId} 로 교체
 export async function getPostDetail(postId) {
   return apiRequest(`/api/posts/${postId}`, {
     method: "GET",
