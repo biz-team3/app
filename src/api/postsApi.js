@@ -76,13 +76,10 @@ export async function getFeedPosts({ page = 0, size = 10 } = {}) {
   return apiRequest(`/api/posts/feed?${params.toString()}`);
 }
 
-// TODO API: Spring Boot 연동 시 GET /api/posts/{postId} 로 교체
 export async function getPostDetail(postId) {
-  try {
-    return mockResponse(toFeedPost(ensurePostVisible(postId)));
-  } catch (error) {
-    return mockError(error.message, error.status);
-  }
+  return apiRequest(`/api/posts/${postId}`, {
+    method: "GET",
+  });
 }
 
 // TODO API: Spring Boot 연동 시 POST /api/posts 204 No Content로 교체, AToken 통해서 유저 받아와야함.
