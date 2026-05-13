@@ -73,23 +73,37 @@ async function toProfile(user) {
 	};
 }
 
+function toProfileFromApi(profile = {}) {
+	return {
+		userId: profile.userId,
+		username: profile.username,
+		name: profile.name,
+		bio: profile.bio || "",
+		website: profile.website || "",
+		profileImageUrl: profile.profileImageUrl || "",
+		followerCount: profile.followerCount ?? 0,
+		followingCount: profile.followingCount ?? 0,
+		postCount: profile.postCount ?? 0,
+		accountVisibility: profile.accountVisibility || "PUBLIC",
+		viewerRelation: profile.viewerRelation || "NOT_FOLLOWING",
+		canViewContent: profile.canViewContent ?? false,
+		isOwner: profile.isOwner ?? false,
+	};
+}
+
 export async function getMyProfile() {
-	const viewer = getCurrentUser();
-	const user = await findApiUserById(viewer.userId);
-	if (!user) return mockError("User not found", 404);
-	return toProfile(user);
+	const result = await apiRequest("/api/profiles/me");
+	return toProfileFromApi(result);
 }
 
 export async function getProfileByUserId(userId) {
-	const user = await findApiUserById(userId);
-	if (!user) return mockError("User not found", 404);
-	return toProfile(user);
+	const result = await apiRequest(`/api/profiles/${userId}`);
+	return toProfileFromApi(result);
 }
 
 export async function getProfileByUsername(username) {
-	const user = await findApiUserByUsername(username);
-	if (!user) return mockError("User not found", 404);
-	return toProfile(user);
+	const result = await apiRequest(`/api/profiles/by-username/${encodeURIComponent(username)}`);
+	return toProfileFromApi(result);
 }
 
 // TODO API: 게시물 목록 조회 API가 준비되면 Spring Boot 프로필 게시물 API로 교체
@@ -113,11 +127,17 @@ export async function getProfilePosts(userId, { page = 0, size = 12 } = {}) {
 }
 
 export async function updateProfile(userId, payload) {
-	const viewer = getCurrentUser();
-	if (Number(userId) !== viewer.userId) return mockError("Only the profile owner can change this profile", 403);
-	await apiRequest(`/api/user/${userId}`, {
+	const result = await apiRequest(`/api/profiles/users/${userId}`, {
 		method: "PATCH",
-		body: JSON.stringify(payload),
+		body: JSON.stringify({
+			username: payload.username?.trim(),
+			name: payload.name?.trim(),
+			bio: payload.bio || "",
+			website: payload.website || "",
+			accountVisibility: payload.accountVisibility,
+			profileImageUrl: payload.profileImageUrl || "",
+		}),
 	});
-	return getProfileByUserId(userId);
+
+	return toProfileFromApi(result);
 }
