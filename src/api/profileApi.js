@@ -1,13 +1,10 @@
 import {
-	canViewerSeeUser,
 	db,
-	findUserById,
 	getCurrentUser,
 	getProfileImage,
 } from "../mocks/db.js";
 import { getFollowers, getFollowing } from "./followsApi.js";
-import { apiRequest, mockError, mockResponse } from "./mockClient.js";
-import { createPageResponseFromItems } from "./pageResponse.js";
+import { apiRequest, mockError } from "./mockClient.js";
 
 const USER_PAGE_SIZE = 1000;
 
@@ -92,24 +89,30 @@ export async function getProfileByUsername(username) {
 	return toProfile(user);
 }
 
-// TODO API: 게시물 목록 조회 API가 준비되면 Spring Boot 프로필 게시물 API로 교체
+function normalizeProfilePost(post = {}) {
+	return {
+		postId: post.postId,
+		imageUrl: post.imageUrl || "",
+		mediaCount: post.mediaCount ?? 0,
+		likeCount: post.likeCount ?? 0,
+		commentCount: post.commentCount ?? 0,
+	};
+}
+
 export async function getProfilePosts(userId, { page = 0, size = 12 } = {}) {
-	const user = findUserById(userId);
-	if (!user) return mockError("User not found", 404);
-  const canViewContent = canViewerSeeUser(user);
-  const allPosts = canViewContent
-    ? db.posts
-        .filter((post) => post.authorId === Number(userId))
-        .map((post) => ({
-          postId: post.postId,
-          imageUrl: post.media[0]?.url,
-          mediaCount: post.media.length,
-          hasMultipleMedia: post.media.length > 1,
-          likeCount: post.likeCount,
-          commentCount: post.commentCount,
-        }))
-    : [];
-	return mockResponse(createPageResponseFromItems(allPosts, { page, size }));
+	const params = new URLSearchParams({
+		page: String(page),
+		size: String(size),
+	});
+	const result = await apiRequest(`/api/profiles/users/${userId}/posts?${params.toString()}`);
+	const pageRequest = result.pageRequest || { page, size };
+	return {
+		content: (result.content || []).map(normalizeProfilePost),
+		pageRequest,
+		total: result.total ?? 0,
+		totalPages: result.totalPages ?? 0,
+		hasNext: Boolean(result.hasNext),
+	};
 }
 
 export async function updateProfile(userId, payload) {
