@@ -211,7 +211,7 @@ export function ProfilePage() {
               {posts.map((post) => (
                 <button key={post.postId} onClick={() => setSelectedPostId(post.postId)} className="group relative aspect-square overflow-hidden text-left">
                   <img src={post.imageUrl} alt="" className="h-full w-full object-cover transition group-hover:brightness-75" />
-                  {post.hasMultipleMedia && (
+                  {post.mediaCount > 1 && (
                     <span className="absolute right-2 top-2 rounded-full bg-black/45 p-1 text-white shadow-sm">
                       <Images className="h-4 w-4" />
                     </span>
