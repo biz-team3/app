@@ -29,6 +29,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
       const [notificationResult, requestResult] = await Promise.all([getNotifications(), getFollowRequests()]);
       setNotifications(notificationResult.notifications);
       setRequests(requestResult.requests);
+      // 패널을 열 때 아직 안 읽은 알림 id만 모아 한 번에 읽음 처리함
       const unreadNotificationIds = notificationResult.notifications
         .filter((notification) => notification.read !== true)
         .map((notification) => notification.notificationId);
