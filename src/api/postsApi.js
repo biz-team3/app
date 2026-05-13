@@ -103,9 +103,8 @@ export async function createPost(payload) {
   return null;
 }
 
-// TODO API: userid는 AccessToken에서 받아와야함. jwt 이후, 수정필요.
 export async function updatePostCaption(postId, payload) {
-  const response = await fetch(`/api/posts/${postId}`, {
+  const response = await apiRequest(`/api/posts/${postId}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
