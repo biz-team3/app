@@ -82,7 +82,6 @@ export async function getPostDetail(postId) {
   });
 }
 
-// TODO API: Spring Boot 연동 시 POST /api/posts 204 No Content로 교체, AToken 통해서 유저 받아와야함.
 export async function createPost(payload) {
   const caption = payload.caption?.trim() || "";
 
@@ -115,16 +114,9 @@ export async function updatePostCaption(postId, payload) {
     }),
   });
 
-  if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || "게시글 수정에 실패했습니다.");
-  }
-
   return null;
 }
 
-
-// TODO API: Spring Boot 연동 시 PUT /api/posts/{postId}/media 204 No Content로 교체
 export async function replacePostMedia(postId, payload) {
   await apiRequest(`/api/posts/${postId}/media`, {
     method: "PUT",
@@ -142,13 +134,6 @@ export async function replacePostMedia(postId, payload) {
   return null;
 }
 
-export async function updatePost(postId, payload) {
-  let result = await updatePostCaption(postId, payload);
-  if (payload.media) result = await replacePostMedia(postId, { media: payload.media });
-  return result;
-}
-
-// TODO: AccessToken 통한 권한 확인 필요
 export async function deletePost(postId) {
   await apiRequest(`/api/posts/${postId}`, {
     method: "DELETE",
@@ -157,7 +142,6 @@ export async function deletePost(postId) {
   return null;
 }
 
-// TODO : AccessToken userId 처리 필요, postId = testPostId로 구현 후 수정필요.
 export async function likePost(postId) {
   await apiRequest(`/api/posts/${postId}/like`, {
     method: "POST",
