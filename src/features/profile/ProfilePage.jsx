@@ -15,7 +15,7 @@ const PROFILE_POST_PAGE_SIZE = 12;
 
 export function ProfilePage() {
   const { username } = useParams();
-  const { feedVersion } = useOutletContext();
+  const { feedVersion, registerPageRefreshHandler } = useOutletContext();
   const { t } = useLanguage();
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
@@ -78,6 +78,11 @@ export function ProfilePage() {
   }, [load]);
 
   useEffect(() => {
+    registerPageRefreshHandler?.(load);
+    return () => registerPageRefreshHandler?.(null);
+  }, [load, registerPageRefreshHandler]);
+
+  useEffect(() => {
     const sentinel = postSentinelRef.current;
     if (!sentinel || !postsHasNext) return undefined;
 
@@ -134,6 +139,7 @@ export function ProfilePage() {
   const handleProfileStoryClick = () => {
     if (hasProfileStories) setViewerOpen(true);
   };
+  const mutualFollowerText = formatMutualFollowerText(profile, t);
 
   return (
     <div className="min-h-screen overflow-auto bg-white px-4 py-6 pb-24 text-black dark:bg-black dark:text-white md:px-8">
@@ -170,6 +176,7 @@ export function ProfilePage() {
             </div>
             <div>
               <h2 className="text-[15px] font-bold">{profile.name}</h2>
+              {mutualFollowerText && <p className="mt-1 text-sm text-gray-500">{mutualFollowerText}</p>}
               <p className="whitespace-pre-line text-[14px] leading-snug">{profile.bio}</p>
               {profile.website && <a href={profile.website} className="text-sm font-semibold text-blue-900 dark:text-blue-300">{profile.website}</a>}
             </div>
@@ -232,4 +239,19 @@ export function ProfilePage() {
       <ProfileEditModal isOpen={editOpen} onClose={() => setEditOpen(false)} onSaved={load} />
     </div>
   );
+}
+
+function formatMutualFollowerText(profile, t) {
+  if (profile.isOwner || !profile.mutualFollowerName || !profile.mutualFollowerCount) {
+    return "";
+  }
+
+  if (profile.mutualFollowerCount === 1) {
+    return t("mutualFollowerOne", { name: profile.mutualFollowerName });
+  }
+
+  return t("mutualFollowers", {
+    name: profile.mutualFollowerName,
+    count: profile.mutualFollowerCount - 1,
+  });
 }

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { getMe, login as loginApi, logout as logoutApi } from "../api/authApi.js";
-import { AUTH_TOKEN_KEY, AUTH_USER_KEY, getAccessToken, readStorage } from "../api/mockClient.js";
+import { AUTH_TOKEN_KEY, AUTH_USER_KEY, clearAccessToken, getAccessToken, readStorage } from "../api/mockClient.js";
 
 const AuthContext = createContext(null);
 
@@ -18,11 +18,20 @@ export function AuthProvider({ children }) {
       return null;
     }
     setLoading(true);
-    const me = await getMe();
-    setUser(me);
-    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(me));
-    setLoading(false);
-    return me;
+    try {
+      const me = await getMe();
+      setUser(me);
+      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(me));
+      return me;
+    } catch (error) {
+      clearAccessToken();
+      localStorage.removeItem(AUTH_USER_KEY);
+      setAccessToken(null);
+      setUser(null);
+      return null;
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -63,4 +72,3 @@ export function AuthProvider({ children }) {
 export function useAuth() {
   return useContext(AuthContext);
 }
-

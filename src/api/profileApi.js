@@ -52,13 +52,37 @@ async function getViewerRelation(userId) {
 	return isFollowing ? "FOLLOWING" : "NOT_FOLLOWING";
 }
 
+async function getMutualFollowerSummary(userId) {
+	const viewer = getCurrentUser();
+	if (viewer.userId === Number(userId)) {
+		return {
+			mutualFollowerName: null,
+			mutualFollowerCount: 0,
+		};
+	}
+
+	const [viewerFollowingResult, targetFollowersResult] = await Promise.all([
+		getFollowing(viewer.userId, { page: 0, size: USER_PAGE_SIZE }),
+		getFollowers(userId, { page: 0, size: USER_PAGE_SIZE }),
+	]);
+
+	const viewerFollowingIds = new Set((viewerFollowingResult.content || []).map((user) => Number(user.userId)));
+	const mutualFollowers = (targetFollowersResult.content || []).filter((user) => viewerFollowingIds.has(Number(user.userId)));
+
+	return {
+		mutualFollowerName: mutualFollowers[0]?.username || null,
+		mutualFollowerCount: mutualFollowers.length,
+	};
+}
+
 async function toProfile(user) {
 	const normalized = normalizeUser(user);
 	const viewer = getCurrentUser();
-	const [followerCount, followingCount, viewerRelation] = await Promise.all([
+	const [followerCount, followingCount, viewerRelation, mutualFollowerSummary] = await Promise.all([
 		countFollowList(getFollowers, normalized.userId),
 		countFollowList(getFollowing, normalized.userId),
 		getViewerRelation(normalized.userId),
+		getMutualFollowerSummary(normalized.userId),
 	]);
 	const canViewContent = normalized.accountVisibility === "PUBLIC" || viewerRelation === "SELF" || viewerRelation === "FOLLOWING";
 
@@ -70,6 +94,7 @@ async function toProfile(user) {
 		viewerRelation,
 		canViewContent,
 		isOwner: viewer.userId === normalized.userId,
+		...mutualFollowerSummary,
 	};
 }
 
