@@ -215,7 +215,8 @@ function NotificationItem({ item, t, onOpenPostDetail, onToggleFollow, followAct
   const message = item.type === "LIKE"
     ? t("likedByOthers", { count: item.actorCount || 0 })
     : t("startedFollowing");
-  const canOpenTargetPost = item.targetType === "POST" && item.targetId;
+  const targetPostId = Number(item.targetId);
+  const canOpenTargetPost = Number.isFinite(targetPostId);
   const showFollowButton = !item.targetImageUrl && item.viewerRelation !== "SELF";
   const followButtonLabel = item.viewerRelation === "FOLLOWING" ? t("following") : item.viewerRelation === "PENDING" ? t("requested") : t("follow");
   const followButtonClass =
@@ -247,9 +248,13 @@ function NotificationItem({ item, t, onOpenPostDetail, onToggleFollow, followAct
         </p>
       </div>
       {item.targetImageUrl && canOpenTargetPost ? (
-        <button type="button" onClick={() => onOpenPostDetail(item.targetId)} className="shrink-0 rounded">
+        <button type="button" onClick={() => onOpenPostDetail(targetPostId)} className="shrink-0 rounded">
           <img src={item.targetImageUrl} alt="" className="h-11 w-11 rounded object-cover" />
         </button>
+      ) : item.targetImageUrl && item.actorUsername ? (
+        <Link to={`/profile/${item.actorUsername}`} className="shrink-0 rounded">
+          <img src={item.targetImageUrl} alt="" className="h-11 w-11 rounded object-cover" />
+        </Link>
       ) : item.targetImageUrl ? (
         <img src={item.targetImageUrl} alt="" className="h-11 w-11 rounded object-cover" />
       ) : showFollowButton ? (
