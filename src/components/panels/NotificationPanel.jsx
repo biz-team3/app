@@ -211,7 +211,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
                         <Link to={`/profile/${request.requesterName}`} className="text-sm font-bold hover:underline">
                           {request.requesterName}
                         </Link>
-                        <p className="w-36 truncate text-sm text-gray-500">{formatMutualText(request, t)}</p>
+                        <p className="w-36 truncate text-sm text-gray-500">{formatRelativeTime(request.createdAt)}</p>
                       </div>
                     </div>
                     <div className="flex gap-2">
