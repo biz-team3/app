@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { Bookmark, ChevronLeft, ChevronRight, Heart, MessageCircle, X } from "lucide-react";
+import { Bookmark, ChevronLeft, ChevronRight, Heart, MessageCircle, MoreHorizontal, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createComment, deleteComment, getPostComments, updateComment } from "../../api/commentsApi.js";
-import { getPostDetail, likePost, savePost, unlikePost, unsavePost } from "../../api/postsApi.js";
+import { deletePost, getPostDetail, likePost, savePost, unlikePost, unsavePost } from "../../api/postsApi.js";
 import { useLanguage } from "../../hooks/useLanguage.js";
 import { ConfirmDialog } from "../../components/modals/ConfirmDialog.jsx";
+import { PostEditModal } from "../../components/modals/PostEditModal.jsx";
 import { formatRelativeTime } from "../../utils/format.js";
 
 const COMMENTS_PAGE_SIZE = 20;
+const CAPTION_PREVIEW_LINES = 3;
+const CAPTION_LINE_HEIGHT = 1.625;
 
 export function PostDetailModal({ postId, onClose, onChanged }) {
   const { t } = useLanguage();
@@ -20,11 +23,18 @@ export function PostDetailModal({ postId, onClose, onChanged }) {
   const [commentText, setCommentText] = useState("");
   const [actionError, setActionError] = useState("");
   const [currentMedia, setCurrentMedia] = useState(0);
+  const [captionExpanded, setCaptionExpanded] = useState(false);
+  const [captionNeedsPreview, setCaptionNeedsPreview] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [editingCommentText, setEditingCommentText] = useState("");
   const [deletingComment, setDeletingComment] = useState(null);
+  const [deletingPost, setDeletingPost] = useState(false);
   const commentsScrollRef = useRef(null);
   const commentsSentinelRef = useRef(null);
+  const captionRef = useRef(null);
+  const menuRef = useRef(null);
 
   const load = async () => {
     setError("");
@@ -64,10 +74,15 @@ export function PostDetailModal({ postId, onClose, onChanged }) {
     setError("");
     setActionError("");
     setCurrentMedia(0);
+    setCaptionExpanded(false);
+    setCaptionNeedsPreview(false);
+    setEditOpen(false);
+    setMenuOpen(false);
     setCommentText("");
     setEditingCommentId(null);
     setEditingCommentText("");
     setDeletingComment(null);
+    setDeletingPost(false);
     load();
   }, [postId]);
 
@@ -86,6 +101,35 @@ export function PostDetailModal({ postId, onClose, onChanged }) {
     return () => observer.disconnect();
   }, [commentsHasNext, commentsLoading, commentPage]);
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!post || captionExpanded) return undefined;
+
+    const measureCaption = () => {
+      const captionElement = captionRef.current;
+      if (!captionElement) return;
+      setCaptionNeedsPreview(captionElement.scrollHeight - captionElement.clientHeight > 1);
+    };
+
+    const animationFrameId = requestAnimationFrame(measureCaption);
+    window.addEventListener("resize", measureCaption);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      window.removeEventListener("resize", measureCaption);
+    };
+  }, [captionExpanded, post]);
+
   if (!post) {
     return (
       <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/65 p-4 backdrop-blur-[1px]" onMouseDown={onClose}>
@@ -99,6 +143,7 @@ export function PostDetailModal({ postId, onClose, onChanged }) {
 
   const mediaCount = post.media.length;
   const postCreatedAtText = formatRelativeTime(post.createdAt);
+  const canManagePost = post.isOwner;
 
   const toggleLike = async () => {
     setActionError("");
@@ -170,6 +215,24 @@ export function PostDetailModal({ postId, onClose, onChanged }) {
     }
   };
 
+  const handleDeletePost = async () => {
+    setActionError("");
+    try {
+      await deletePost(post.postId);
+      setDeletingPost(false);
+      onChanged?.();
+      onClose();
+    } catch {
+      setDeletingPost(false);
+      setActionError(t("postActionFailed"));
+    }
+  };
+
+  const handlePostSaved = async () => {
+    await load();
+    onChanged?.();
+  };
+
   return (
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/65 p-4 backdrop-blur-[1px]" onMouseDown={onClose}>
       <article
@@ -207,14 +270,63 @@ export function PostDetailModal({ postId, onClose, onChanged }) {
                 {post.author.username}
               </Link>
             </div>
-            <button onClick={onClose} className="rounded-full p-1 hover:bg-gray-100 dark:hover:bg-gray-900">
-              <X className="h-5 w-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              {canManagePost && (
+                <div ref={menuRef} className="relative">
+                  <button
+                    onClick={() => setMenuOpen((value) => !value)}
+                    className="rounded-full p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-900"
+                    aria-label={t("postOptions")}
+                  >
+                    <MoreHorizontal className="h-5 w-5" />
+                  </button>
+                  {menuOpen && (
+                    <div className="absolute right-0 top-8 z-20 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white text-sm shadow-xl dark:border-gray-800 dark:bg-gray-950">
+                      <button
+                        onClick={() => {
+                          setEditOpen(true);
+                          setMenuOpen(false);
+                        }}
+                        className="block w-full px-4 py-3 text-left font-semibold hover:bg-gray-50 dark:hover:bg-gray-900"
+                      >
+                        {t("editPost")}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setDeletingPost(true);
+                          setMenuOpen(false);
+                        }}
+                        className="block w-full px-4 py-3 text-left font-semibold text-red-500 hover:bg-gray-50 dark:hover:bg-gray-900"
+                      >
+                        {t("deletePost")}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+              <button onClick={onClose} className="rounded-full p-1 hover:bg-gray-100 dark:hover:bg-gray-900">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
           </header>
 
           <div ref={commentsScrollRef} className="flex-1 overflow-y-auto px-4 py-4">
-            <div className="mb-5 text-sm leading-relaxed">
-              <p>{post.caption}</p>
+            <div className="mb-5 text-sm leading-relaxed break-words [overflow-wrap:anywhere] [white-space:break-spaces]">
+              <p
+                ref={captionRef}
+                className={captionExpanded ? "" : "overflow-hidden"}
+                style={captionExpanded ? undefined : { maxHeight: `${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em` }}
+              >
+                {post.caption}
+              </p>
+              {captionNeedsPreview && (
+                <button
+                  onClick={() => setCaptionExpanded((value) => !value)}
+                  className="mt-1 font-semibold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                >
+                  {captionExpanded ? "접기" : "더 보기"}
+                </button>
+              )}
             </div>
 
             <div className="flex flex-col gap-4">
@@ -242,7 +354,7 @@ export function PostDetailModal({ postId, onClose, onChanged }) {
                         </div>
                       </div>
                     ) : (
-                      <p className="leading-relaxed">
+                      <p className="leading-relaxed break-words [overflow-wrap:anywhere] [white-space:break-spaces]">
                         <span className="mr-2 font-bold">{comment.author.username}</span>
                         {comment.text}
                       </p>
@@ -265,17 +377,20 @@ export function PostDetailModal({ postId, onClose, onChanged }) {
             {actionError ? <p className="mx-4 mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-500 dark:bg-red-950/30">{actionError}</p> : null}
             <div className="flex items-center justify-between px-4 py-3">
               <div className="flex gap-4">
-                <button onClick={toggleLike}>
+                <button onClick={toggleLike} className="flex items-center gap-1.5">
                   <Heart className={`h-6 w-6 ${post.likedByMe ? "fill-red-500 text-red-500" : ""}`} />
+                  <span className="text-sm font-bold">{post.likeCount.toLocaleString()}</span>
                 </button>
-                <MessageCircle className="h-6 w-6" />
+                <div className="flex items-center gap-1.5">
+                  <MessageCircle className="h-6 w-6" />
+                  <span className="text-sm font-bold">{post.commentCount.toLocaleString()}</span>
+                </div>
               </div>
               <button onClick={toggleSave} aria-label={post.savedByMe ? t("unsavePost") : t("savePost")}>
                 <Bookmark className={`h-6 w-6 ${post.savedByMe ? "fill-yellow-400 text-yellow-400" : ""}`} />
               </button>
             </div>
             <div className="px-4 pb-3">
-              <p className="text-sm font-bold">{post.likeCount.toLocaleString()}</p>
               <p className="mt-1 text-xs text-gray-400">{postCreatedAtText}</p>
             </div>
             <form onSubmit={handleCreateComment} className="flex items-center gap-3 border-t border-gray-100 px-4 py-3 dark:border-gray-800">
@@ -296,6 +411,20 @@ export function PostDetailModal({ postId, onClose, onChanged }) {
           onCancel={() => setDeletingComment(null)}
         />
       )}
+      {deletingPost && (
+        <ConfirmDialog
+          title={t("deletePostTitle")}
+          description={t("deletePostDesc")}
+          confirmLabel={t("delete")}
+          cancelLabel={t("cancel")}
+          destructive
+          onConfirm={handleDeletePost}
+          onCancel={() => setDeletingPost(false)}
+        />
+      )}
+      <div onMouseDown={(event) => event.stopPropagation()}>
+        <PostEditModal post={post} isOpen={editOpen} onClose={() => setEditOpen(false)} onSaved={handlePostSaved} />
+      </div>
     </div>
   );
 }
