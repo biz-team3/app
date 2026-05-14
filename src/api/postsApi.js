@@ -1,10 +1,7 @@
 import { canViewerSeeUser, db, findUserById, getCurrentUser, getProfileImage, nextId } from "../mocks/db.js";
+import { extractHashtags } from "../utils/hashtags.js";
 import { apiRequest, mockError, mockResponse } from "./mockClient.js";
 import { createPageResponseFromItems } from "./pageResponse.js";
-
-function extractHashtags(text = "") {
-  return Array.from(new Set(text.match(/#[^\s#]+/g) || []));
-}
 
 function toMediaItem(item, postId, index) {
   const rawUrl = item.previewUrl || item.url || "";

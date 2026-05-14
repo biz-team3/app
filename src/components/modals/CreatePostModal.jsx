@@ -4,11 +4,8 @@ import { uploadPostMedia } from "../../api/mediaApi.js";
 import { createPost } from "../../api/postsApi.js";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useLanguage } from "../../hooks/useLanguage.js";
+import { extractHashtags } from "../../utils/hashtags.js";
 import { IMAGE_FILE_ACCEPT, validateImageFiles } from "../../utils/mediaValidation.js";
-
-function extractHashtags(text) {
-  return Array.from(new Set(text.match(/#[^\s#]+/g) || []));
-}
 
 export function CreatePostModal({ isOpen, onClose, onCreated }) {
   const [step, setStep] = useState(1);
