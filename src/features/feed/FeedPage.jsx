@@ -23,6 +23,7 @@ const DEFAULT_STORY_LAYOUT = {
   visibleCount: STORY_MIN_VISIBLE_COUNT,
   tileWidth: 52,
   avatarSize: 42,
+  navNudgeSpace: 0,
 };
 
 function hasStories(group) {
@@ -37,12 +38,14 @@ function getStoryLayoutForViewport(totalStories = 0) {
   if (!Number.isFinite(railWidth) || railWidth <= 0) return DEFAULT_STORY_LAYOUT;
 
   const countForWidth = (width) => Math.max(STORY_MIN_VISIBLE_COUNT, Math.floor((width + STORY_TILE_GAP) / (STORY_MIN_TILE_WIDTH + STORY_TILE_GAP)));
-  const availableWidth = railWidth;
+  const countWithoutNudge = countForWidth(railWidth);
+  const navNudgeSpace = totalStories > countWithoutNudge ? STORY_NAV_NUDGE_SPACE : 0;
+  const availableWidth = railWidth - navNudgeSpace * 2;
   const visibleCount = countForWidth(availableWidth);
   const tileWidth = (availableWidth - STORY_TILE_GAP * (visibleCount - 1)) / visibleCount;
   const avatarSize = Math.max(STORY_MIN_AVATAR_SIZE, Math.min(STORY_MAX_AVATAR_SIZE, tileWidth - 10));
 
-  return { visibleCount, tileWidth, avatarSize };
+  return { visibleCount, tileWidth, avatarSize, navNudgeSpace };
 }
 
 function hasUnreadStories(group) {
@@ -177,7 +180,8 @@ export function FeedPage() {
       setStoryLayout((current) =>
         current.visibleCount === nextLayout.visibleCount &&
         current.tileWidth === nextLayout.tileWidth &&
-        current.avatarSize === nextLayout.avatarSize
+        current.avatarSize === nextLayout.avatarSize &&
+        current.navNudgeSpace === nextLayout.navNudgeSpace
           ? current
           : nextLayout,
       );
@@ -200,7 +204,8 @@ export function FeedPage() {
   const storyPageCount = Math.ceil(storyGroups.length / storyLayout.visibleCount);
   const canPreviousStories = storyPage > 0;
   const canNextStories = storyPage < storyPageCount - 1;
-  const storyRailLeftSpace = canPreviousStories ? STORY_NAV_NUDGE_SPACE : 0;
+  const storyRailLeftSpace = canPreviousStories ? storyLayout.navNudgeSpace : 0;
+  const storyRailRightSpace = canNextStories ? storyLayout.navNudgeSpace : 0;
   const openStoryGroup = (group) => {
     if (group.isOwner && !hasStories(group)) {
       onCreateStory?.();
@@ -219,6 +224,7 @@ export function FeedPage() {
                 className="flex justify-start gap-3 overflow-hidden"
                 style={{
                   paddingLeft: `${storyRailLeftSpace}px`,
+                  paddingRight: `${storyRailRightSpace}px`,
                 }}
               >
                 {visibleStoryGroups.map((group) => (
