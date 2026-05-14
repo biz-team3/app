@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Bookmark, ChevronLeft, ChevronRight, Heart, MessageCircle, MoreHorizontal } from "lucide-react";
+import { Bookmark, ChevronLeft, ChevronRight, Heart, Loader2, MessageCircle, MoreHorizontal } from "lucide-react";
 import { Link } from "react-router-dom";
-import { deletePost, likePost, savePost, unlikePost, unsavePost } from "../../api/postsApi.js";
+import { deletePost, likePost, savePost, translatePostCaption, unlikePost, unsavePost } from "../../api/postsApi.js";
 import { useLanguage } from "../../hooks/useLanguage.js";
 import { ConfirmDialog } from "../../components/modals/ConfirmDialog.jsx";
 import { PostEditModal } from "../../components/modals/PostEditModal.jsx";
@@ -17,6 +17,8 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
   const [expanded, setExpanded] = useState(false);
   const [captionNeedsPreview, setCaptionNeedsPreview] = useState(false);
   const [translated, setTranslated] = useState(false);
+  const [translatedCaption, setTranslatedCaption] = useState(post.translatedCaption || "");
+  const [translatingCaption, setTranslatingCaption] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [deletingPost, setDeletingPost] = useState(false);
@@ -25,7 +27,7 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
   const menuRef = useRef(null);
 
   const mediaCount = post.media.length;
-  const captionText = translated ? post.translatedCaption : post.caption;
+  const captionText = translated ? translatedCaption : post.caption;
   const canManagePost = post.isOwner;
   const postTimeText = formatRelativeTime(post.createdAt);
 
@@ -37,7 +39,10 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
     setActionError("");
     setExpanded(false);
     setCaptionNeedsPreview(false);
-  }, [post.postId, post.caption, post.media]);
+    setTranslated(false);
+    setTranslatedCaption(post.translatedCaption || "");
+    setTranslatingCaption(false);
+  }, [post.postId, post.caption, post.media, post.translatedCaption]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -98,6 +103,28 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
     } catch {
       setDeletingPost(false);
       setActionError(t("postActionFailed"));
+    }
+  };
+
+  const toggleCaptionTranslation = async () => {
+    setActionError("");
+
+    if (translatedCaption) {
+      setTranslated((value) => !value);
+      return;
+    }
+
+    if (translatingCaption) return;
+    setTranslatingCaption(true);
+
+    try {
+      const result = await translatePostCaption(post.postId);
+      setTranslatedCaption(result.translatedContent);
+      setTranslated(true);
+    } catch (error) {
+      setActionError(getTranslationErrorMessage(error, t));
+    } finally {
+      setTranslatingCaption(false);
     }
   };
 
@@ -190,8 +217,9 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
             </button>
           )}
         </div>
-        <button onClick={() => setTranslated((value) => !value)} className="w-fit text-[10px] font-bold uppercase text-gray-500">
-          {translated ? t("seeOriginal") : t("seeTranslation")}
+        <button onClick={toggleCaptionTranslation} disabled={translatingCaption} className="flex w-fit items-center gap-1 text-[10px] font-bold uppercase text-gray-500 disabled:text-gray-300">
+          {translatingCaption && <Loader2 className="h-3 w-3 animate-spin" />}
+          {translatingCaption ? t("translating") : translated ? t("seeOriginal") : t("seeTranslation")}
         </button>
       </div>
       {deletingPost && (
@@ -208,4 +236,12 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
       <PostEditModal post={post} isOpen={editOpen} onClose={() => setEditOpen(false)} onSaved={onChanged} />
     </article>
   );
+}
+
+function getTranslationErrorMessage(error, t) {
+  if (error?.message?.includes("DeepL API 키")) {
+    return t("translationSetupRequired");
+  }
+
+  return error?.message || t("translationFailed");
 }

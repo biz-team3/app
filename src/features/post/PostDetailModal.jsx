@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Bookmark, ChevronLeft, ChevronRight, Heart, MessageCircle, MoreHorizontal, X } from "lucide-react";
+import { Bookmark, ChevronLeft, ChevronRight, Heart, Loader2, MessageCircle, MoreHorizontal, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createComment, deleteComment, getPostComments, updateComment } from "../../api/commentsApi.js";
-import { deletePost, getPostDetail, likePost, savePost, unlikePost, unsavePost } from "../../api/postsApi.js";
+import { deletePost, getPostDetail, likePost, savePost, translatePostCaption, unlikePost, unsavePost } from "../../api/postsApi.js";
 import { useLanguage } from "../../hooks/useLanguage.js";
 import { ConfirmDialog } from "../../components/modals/ConfirmDialog.jsx";
 import { PostEditModal } from "../../components/modals/PostEditModal.jsx";
@@ -26,6 +26,9 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
   const [currentMedia, setCurrentMedia] = useState(0);
   const [captionExpanded, setCaptionExpanded] = useState(false);
   const [captionNeedsPreview, setCaptionNeedsPreview] = useState(false);
+  const [captionTranslated, setCaptionTranslated] = useState(false);
+  const [translatedCaption, setTranslatedCaption] = useState("");
+  const [captionTranslating, setCaptionTranslating] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState(null);
@@ -42,6 +45,7 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
     try {
       const [postResult, commentResult] = await Promise.all([getPostDetail(postId), getPostComments(postId, { page: 0, size: COMMENTS_PAGE_SIZE })]);
       setPost(postResult);
+      setTranslatedCaption(postResult.translatedCaption || "");
       setComments(commentResult.content);
       setCommentPage(commentResult.pageRequest.page);
       setCommentsHasNext(commentResult.hasNext);
@@ -77,6 +81,9 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
     setCurrentMedia(0);
     setCaptionExpanded(false);
     setCaptionNeedsPreview(false);
+    setCaptionTranslated(false);
+    setTranslatedCaption("");
+    setCaptionTranslating(false);
     setEditOpen(false);
     setMenuOpen(false);
     setCommentText("");
@@ -129,7 +136,7 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener("resize", measureCaption);
     };
-  }, [captionExpanded, post]);
+  }, [captionExpanded, post, captionTranslated, translatedCaption]);
 
   if (!post) {
     return (
@@ -146,6 +153,7 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
   const postCreatedAtText = formatRelativeTime(post.createdAt);
   const canManagePost = post.isOwner;
   const canCreateComment = commentText.trim().length > 0;
+  const captionText = captionTranslated ? translatedCaption : post.caption;
 
   const toggleLike = async () => {
     setActionError("");
@@ -233,6 +241,29 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
   const handlePostSaved = async () => {
     await load();
     onChanged?.();
+  };
+
+  const toggleCaptionTranslation = async () => {
+    setActionError("");
+
+    if (translatedCaption) {
+      setCaptionTranslated((value) => !value);
+      return;
+    }
+
+    if (captionTranslating) return;
+    setCaptionTranslating(true);
+
+    try {
+      const result = await translatePostCaption(post.postId);
+      setTranslatedCaption(result.translatedContent);
+      setCaptionTranslated(true);
+      setPost((currentPost) => currentPost ? { ...currentPost, translatedCaption: result.translatedContent } : currentPost);
+    } catch (error) {
+      setActionError(getTranslationErrorMessage(error, t));
+    } finally {
+      setCaptionTranslating(false);
+    }
   };
 
   return (
@@ -323,7 +354,7 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
             <div className="mb-5 text-sm">
               <PostCaptionText
                 ref={captionRef}
-                caption={post.caption || ""}
+                caption={captionText || ""}
                 collapsed={!captionExpanded}
                 maxHeight={`${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em`}
                 className="leading-relaxed"
@@ -336,6 +367,10 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
                   {captionExpanded ? t("close") : t("more")}
                 </button>
               )}
+              <button onClick={toggleCaptionTranslation} disabled={captionTranslating} className="mt-2 flex w-fit items-center gap-1 text-[10px] font-bold uppercase text-gray-500 disabled:text-gray-300">
+                {captionTranslating && <Loader2 className="h-3 w-3 animate-spin" />}
+                {captionTranslating ? t("translating") : captionTranslated ? t("seeOriginal") : t("seeTranslation")}
+              </button>
             </div>
 
             <div className="flex flex-col gap-4">
@@ -445,4 +480,12 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
       </div>
     </div>
   );
+}
+
+function getTranslationErrorMessage(error, t) {
+  if (error?.message?.includes("DeepL API 키")) {
+    return t("translationSetupRequired");
+  }
+
+  return error?.message || t("translationFailed");
 }
