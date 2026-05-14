@@ -5,8 +5,8 @@ import { deletePost, likePost, savePost, unlikePost, unsavePost } from "../../ap
 import { useLanguage } from "../../hooks/useLanguage.js";
 import { ConfirmDialog } from "../../components/modals/ConfirmDialog.jsx";
 import { PostEditModal } from "../../components/modals/PostEditModal.jsx";
-import { splitCaptionTokens } from "../../utils/content.js";
 import { formatRelativeTime } from "../../utils/format.js";
+import { PostCaptionText } from "./PostCaptionText.jsx";
 
 const CAPTION_PREVIEW_LINES = 3;
 const CAPTION_LINE_HEIGHT = 1.625;
@@ -26,7 +26,6 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
 
   const mediaCount = post.media.length;
   const captionText = translated ? post.translatedCaption : post.caption;
-  const captionTokens = splitCaptionTokens(captionText || "");
   const canManagePost = post.isOwner;
   const postTimeText = formatRelativeTime(post.createdAt);
 
@@ -176,22 +175,15 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
           </button>
         </div>
         {actionError ? <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-500 dark:bg-red-950/30">{actionError}</p> : null}
-        <div className="text-sm leading-relaxed whitespace-pre-wrap [word-break:keep-all]">
-          <p
+        <div className="text-sm">
+          <PostCaptionText
             ref={captionRef}
-            className={expanded ? "" : "overflow-hidden"}
-            style={expanded ? undefined : { maxHeight: `${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em` }}
-          >
-            <span className="mr-2 font-bold">{post.author.username}</span>
-            {captionTokens.map((token, index) => (
-              <span
-                key={`${token.type}-${index}`}
-                className={token.type === "hashtag" ? "whitespace-nowrap" : "[overflow-wrap:break-word]"}
-              >
-                {token.text}
-              </span>
-            ))}
-          </p>
+            caption={captionText || ""}
+            authorName={post.author.username}
+            collapsed={!expanded}
+            maxHeight={`${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em`}
+            className="leading-relaxed"
+          />
           {captionNeedsPreview && (
             <button onClick={() => setExpanded((value) => !value)} className="mt-1 font-semibold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
               {expanded ? t("close") : t("more")}

@@ -1,18 +1,18 @@
-const HASHTAG_PATTERN = /#[\wㄱ-ㅎㅏ-ㅣ가-힣]+/g;
+const HASHTAG_PATTERN = /#[^\s#]+/g;
 
-export function extractHashtags(caption = "") {
-  return caption.match(HASHTAG_PATTERN) || [];
+export function extractHashtags(text = "") {
+  return Array.from(new Set(text.match(HASHTAG_PATTERN) || []));
 }
 
-export function stripHashtags(caption = "") {
-  return caption.replace(HASHTAG_PATTERN, "").trim();
+export function stripHashtags(text = "") {
+  return text.replace(HASHTAG_PATTERN, "").trim();
 }
 
 export function splitCaptionTokens(caption = "") {
   const tokens = [];
   let lastIndex = 0;
 
-  // 해시태그만 별도 토큰으로 분리해서 렌더링 시 중간 줄바꿈을 막기 위함임
+  // 해시태그를 별도 토큰으로 분리해서 렌더링 시 중간 줄바꿈을 막기 위함임
   caption.replace(HASHTAG_PATTERN, (match, offset) => {
     if (offset > lastIndex) {
       tokens.push({ type: "text", text: caption.slice(lastIndex, offset) });
