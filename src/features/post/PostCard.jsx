@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Bookmark, ChevronLeft, ChevronRight, Heart, MessageCircle, MoreHorizontal } from "lucide-react";
 import { Link } from "react-router-dom";
+import { getPreferences } from "../../api/preferencesApi.js";
 import { deletePost, likePost, savePost, unlikePost, unsavePost } from "../../api/postsApi.js";
+import { HiddenTextBlock } from "../../components/content/HiddenTextBlock.jsx";
 import { useLanguage } from "../../hooks/useLanguage.js";
 import { ConfirmDialog } from "../../components/modals/ConfirmDialog.jsx";
 import { PostEditModal } from "../../components/modals/PostEditModal.jsx";
 import { formatRelativeTime } from "../../utils/format.js";
+import { containsHiddenWord } from "../../utils/hiddenWords.js";
 import { PostCaptionText } from "./PostCaptionText.jsx";
 
 const CAPTION_PREVIEW_LINES = 3;
@@ -21,11 +24,14 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [deletingPost, setDeletingPost] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [hiddenWordsEnabled, setHiddenWordsEnabled] = useState(false);
+  const [hiddenWords, setHiddenWords] = useState([]);
   const captionRef = useRef(null);
   const menuRef = useRef(null);
 
   const mediaCount = post.media.length;
   const captionText = translated ? post.translatedCaption : post.caption;
+  const captionHidden = hiddenWordsEnabled && containsHiddenWord(captionText, hiddenWords);
   const canManagePost = post.isOwner;
   const postTimeText = formatRelativeTime(post.createdAt);
 
@@ -47,6 +53,19 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const loadPreferences = () => {
+      getPreferences().then((preferences) => {
+        setHiddenWordsEnabled(Boolean(preferences.hiddenWordsEnabled));
+        setHiddenWords(preferences.hiddenWords || []);
+      });
+    };
+
+    loadPreferences();
+    window.addEventListener("preferences:changed", loadPreferences);
+    return () => window.removeEventListener("preferences:changed", loadPreferences);
   }, []);
 
   useEffect(() => {
@@ -176,15 +195,28 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
         </div>
         {actionError ? <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-500 dark:bg-red-950/30">{actionError}</p> : null}
         <div className="text-sm">
-          <PostCaptionText
-            ref={captionRef}
-            caption={captionText || ""}
-            authorName={post.author.username}
-            collapsed={!expanded}
-            maxHeight={`${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em`}
-            className="leading-relaxed"
-          />
-          {captionNeedsPreview && (
+          {captionHidden ? (
+            <HiddenTextBlock>
+              <PostCaptionText
+                ref={captionRef}
+                caption={captionText || ""}
+                authorName={post.author.username}
+                collapsed={!expanded}
+                maxHeight={`${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em`}
+                className="leading-relaxed"
+              />
+            </HiddenTextBlock>
+          ) : (
+            <PostCaptionText
+              ref={captionRef}
+              caption={captionText || ""}
+              authorName={post.author.username}
+              collapsed={!expanded}
+              maxHeight={`${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em`}
+              className="leading-relaxed"
+            />
+          )}
+          {!captionHidden && captionNeedsPreview && (
             <button onClick={() => setExpanded((value) => !value)} className="mt-1 font-semibold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
               {expanded ? t("close") : t("more")}
             </button>

@@ -1,4 +1,6 @@
 import { X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { getPreferences, savePreferences } from "../../api/preferencesApi.js";
 import { useLanguage } from "../../hooks/useLanguage.js";
 import { useTheme } from "../../hooks/useTheme.js";
 
@@ -15,6 +17,21 @@ const themeOptions = [
 export function SystemSettingsModal({ isOpen, onClose }) {
   const { t, language, setLanguage } = useLanguage();
   const { theme, setTheme } = useTheme();
+  const [hiddenWordsEnabled, setHiddenWordsEnabled] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    getPreferences().then((preferences) => {
+      setHiddenWordsEnabled(Boolean(preferences.hiddenWordsEnabled));
+    });
+  }, [isOpen]);
+
+  const changeHiddenWordsEnabled = (nextValue) => {
+    setHiddenWordsEnabled(nextValue);
+    savePreferences({ hiddenWordsEnabled: nextValue });
+    window.dispatchEvent(new Event("preferences:changed"));
+  };
 
   if (!isOpen) return null;
 
@@ -50,6 +67,25 @@ export function SystemSettingsModal({ isOpen, onClose }) {
               onChange={setTheme}
               t={t}
             />
+          </SettingGroup>
+          <SettingGroup title={t("hiddenWords")}>
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm leading-relaxed text-gray-500 dark:text-gray-400">{t("hiddenWordsDesc")}</p>
+              <button
+                type="button"
+                onClick={() => changeHiddenWordsEnabled(!hiddenWordsEnabled)}
+                className={`relative h-7 w-12 shrink-0 rounded-full transition ${
+                  hiddenWordsEnabled ? "bg-blue-500" : "bg-gray-300 dark:bg-zinc-700"
+                }`}
+                aria-pressed={hiddenWordsEnabled}
+              >
+                <span
+                  className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition ${
+                    hiddenWordsEnabled ? "left-6" : "left-1"
+                  }`}
+                />
+              </button>
+            </div>
           </SettingGroup>
         </div>
       </section>
