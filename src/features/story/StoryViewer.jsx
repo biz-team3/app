@@ -1,46 +1,109 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Trash2, X } from "lucide-react";
 import { Link } from "react-router-dom";
-import { deleteStory } from "../../api/storiesApi.js";
+import { deleteStory, markStoryAsRead } from "../../api/storiesApi.js";
 import { ConfirmDialog } from "../../components/modals/ConfirmDialog.jsx";
 import { useLanguage } from "../../hooks/useLanguage.js";
 import { formatRelativeTime } from "../../utils/format.js";
 
-export function StoryViewer({ groups, initialIndex = 0, onClose, onDeleted }) {
+const STORY_DURATION_MS = 5000;
+const STORY_READ_DELAY_MS = STORY_DURATION_MS / 2;
+
+function markStoryReadInGroups(groups, storyId) {
+  return groups.map((group) => ({
+    ...group,
+    stories: (group.stories || []).map((story) => (story.storyId === storyId ? { ...story, isRead: true } : story)),
+  }));
+}
+
+function getFirstUnreadStoryIndex(group) {
+  const unreadIndex = (group?.stories || []).findIndex((story) => !story.isRead);
+  return unreadIndex >= 0 ? unreadIndex : 0;
+}
+
+export function StoryViewer({ groups, initialIndex = 0, onClose, onDeleted, onViewed }) {
   const { t } = useLanguage();
-  const [groupIndex, setGroupIndex] = useState(initialIndex);
-  const [storyIndex, setStoryIndex] = useState(0);
+  const [localGroups, setLocalGroups] = useState(groups);
+  const [position, setPosition] = useState({
+    groupIndex: initialIndex,
+    storyIndex: getFirstUnreadStoryIndex(groups[initialIndex]),
+  });
   const [deletingStory, setDeletingStory] = useState(null);
   const [actionError, setActionError] = useState("");
+  const readRequestedStoryIdsRef = useRef(new Set());
 
-  const group = groups[groupIndex];
+  const groupIndex = position.groupIndex;
+  const storyIndex = position.storyIndex;
+  const group = localGroups[groupIndex];
   const story = group?.stories?.[storyIndex];
   const canGoPrevious = storyIndex > 0 || groupIndex > 0;
 
   useEffect(() => {
-    setStoryIndex(0);
-  }, [groupIndex]);
+    const nextGroupIndex = Math.max(0, Math.min(initialIndex, groups.length - 1));
+    setLocalGroups(groups);
+    readRequestedStoryIdsRef.current = new Set(
+      groups.flatMap((item) => (item.stories || []).filter((storyItem) => storyItem.isRead).map((storyItem) => storyItem.storyId)),
+    );
+    setPosition({
+      groupIndex: nextGroupIndex,
+      storyIndex: getFirstUnreadStoryIndex(groups[nextGroupIndex]),
+    });
+  }, [groups, initialIndex]);
+
+  const markVisibleStoryAsRead = (targetStory = story) => {
+    if (!targetStory || targetStory.isRead || readRequestedStoryIdsRef.current.has(targetStory.storyId)) return;
+    readRequestedStoryIdsRef.current.add(targetStory.storyId);
+    setLocalGroups((current) => markStoryReadInGroups(current, targetStory.storyId));
+    markStoryAsRead(targetStory.storyId).catch(() => {});
+  };
 
   useEffect(() => {
-    if (deletingStory) return undefined;
-    const timer = window.setTimeout(() => nextStory(), 5000);
-    return () => window.clearTimeout(timer);
-  });
+    if (!story || story.isRead) return undefined;
+    const readTimer = window.setTimeout(() => {
+      markVisibleStoryAsRead(story);
+    }, STORY_READ_DELAY_MS);
+    return () => window.clearTimeout(readTimer);
+  }, [story?.storyId, story?.isRead]);
+
+  const handleClose = () => {
+    onViewed?.();
+    onClose();
+  };
 
   const nextStory = () => {
     if (!group) return;
+    markVisibleStoryAsRead(story);
     if (storyIndex < group.stories.length - 1) {
-      setStoryIndex((value) => value + 1);
-    } else if (groupIndex < groups.length - 1) {
-      setGroupIndex((value) => value + 1);
+      setPosition({ groupIndex, storyIndex: storyIndex + 1 });
+    } else if (groupIndex < localGroups.length - 1) {
+      const nextGroupIndex = groupIndex + 1;
+      setPosition({
+        groupIndex: nextGroupIndex,
+        storyIndex: getFirstUnreadStoryIndex(localGroups[nextGroupIndex]),
+      });
     } else {
-      onClose();
+      handleClose();
     }
   };
 
+  useEffect(() => {
+    if (!story) return undefined;
+    if (deletingStory) return undefined;
+    const timer = window.setTimeout(() => nextStory(), STORY_DURATION_MS);
+    return () => window.clearTimeout(timer);
+  }, [story?.storyId, deletingStory]);
+
   const previousStory = () => {
-    if (storyIndex > 0) setStoryIndex((value) => value - 1);
-    else if (groupIndex > 0) setGroupIndex((value) => value - 1);
+    markVisibleStoryAsRead(story);
+    if (storyIndex > 0) {
+      setPosition({ groupIndex, storyIndex: storyIndex - 1 });
+    } else if (groupIndex > 0) {
+      const previousGroup = localGroups[groupIndex - 1];
+      setPosition({
+        groupIndex: groupIndex - 1,
+        storyIndex: Math.max(0, (previousGroup?.stories?.length || 1) - 1),
+      });
+    }
   };
 
   const handleDeleteStory = async () => {
@@ -61,7 +124,7 @@ export function StoryViewer({ groups, initialIndex = 0, onClose, onDeleted }) {
   if (!group || !story) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black" onMouseDown={handleClose}>
       {group.isOwner && (
         <button
           onMouseDown={(event) => event.stopPropagation()}
@@ -72,7 +135,7 @@ export function StoryViewer({ groups, initialIndex = 0, onClose, onDeleted }) {
           <Trash2 className="h-7 w-7" />
         </button>
       )}
-      <button onClick={onClose} className="absolute right-5 top-5 z-10 text-white">
+      <button onClick={handleClose} className="absolute right-5 top-5 z-10 text-white">
         <X className="h-8 w-8" />
       </button>
       <div
@@ -87,7 +150,7 @@ export function StoryViewer({ groups, initialIndex = 0, onClose, onDeleted }) {
               </div>
             ))}
           </div>
-          <Link to={`/profile/${group.username}`} onClick={onClose} className="flex w-fit items-center gap-3 text-white">
+          <Link to={`/profile/${group.username}`} onClick={handleClose} className="flex w-fit items-center gap-3 text-white">
             <img src={group.profileImageUrl} alt="" className="h-9 w-9 rounded-full object-cover" />
             <span className="text-sm font-bold">{group.username}</span>
             <span className="text-xs text-white/70">{formatRelativeTime(story.createdAt)}</span>

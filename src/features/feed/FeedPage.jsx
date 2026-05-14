@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { getFeedPosts } from "../../api/postsApi.js";
 import { getFeedStories, getStoryBundle } from "../../api/storiesApi.js";
 import { StoryViewer } from "../story/StoryViewer.jsx";
@@ -20,18 +20,45 @@ function hasStories(group) {
   return (group?.stories || []).length > 0;
 }
 
+function hasUnreadStories(group) {
+  return (group?.stories || []).some((story) => !story.isRead);
+}
+
+function getStoryRingClass(group) {
+  if (!hasStories(group)) return "bg-gray-200 dark:bg-gray-800";
+  return hasUnreadStories(group) ? "bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600" : "bg-gray-300 dark:bg-gray-700";
+}
+
+function toViewerStoryGroup(user) {
+  return {
+    userId: user.userId,
+    username: user.username,
+    profileImageUrl: user.profileImageUrl || user.profileImg || "",
+    isOwner: true,
+    stories: [],
+  };
+}
+
 function mergeStoryGroups(myStoryGroup, feedStoryGroups) {
-  const groups = [myStoryGroup, ...(feedStoryGroups || [])].filter(hasStories);
   const seen = new Set();
-  return groups.filter((group) => {
-    if (seen.has(group.userId)) return false;
+  const groups = [];
+
+  if (myStoryGroup) {
+    groups.push({ ...myStoryGroup, isOwner: true });
+    seen.add(myStoryGroup.userId);
+  }
+
+  (feedStoryGroups || []).forEach((group) => {
+    if (!hasStories(group) || seen.has(group.userId)) return;
+    groups.push({ ...group, isOwner: false });
     seen.add(group.userId);
-    return true;
   });
+
+  return groups;
 }
 
 export function FeedPage() {
-  const { feedVersion } = useOutletContext();
+  const { feedVersion, onCreateStory } = useOutletContext();
   const { user } = useAuth();
   const { t } = useLanguage();
   const [posts, setPosts] = useState([]);
@@ -54,17 +81,18 @@ export function FeedPage() {
       return;
     }
 
-    try {
-      const [myStoryGroup, feedStories] = await Promise.all([
-        getStoryBundle(user.userId),
-        getFeedStories(),
-      ]);
-      setStoryGroups(mergeStoryGroups(myStoryGroup, feedStories.storyGroups));
-    } catch {
-      setStoryGroups([]);
-    }
+    const [myStoryGroupResult, feedStoriesResult] = await Promise.allSettled([
+      getStoryBundle(user.userId),
+      getFeedStories(),
+    ]);
+
+    const myStoryGroup =
+      myStoryGroupResult.status === "fulfilled" ? { ...myStoryGroupResult.value, isOwner: true } : toViewerStoryGroup(user);
+    const feedStoryGroups = feedStoriesResult.status === "fulfilled" ? feedStoriesResult.value.content : [];
+
+    setStoryGroups(mergeStoryGroups(myStoryGroup, feedStoryGroups));
     setStoryPage(0);
-  }, [user?.userId]);
+  }, [user]);
 
   const loadFeedPage = useCallback(async (targetPage = 0, mode = "replace") => {
     if (loadingRef.current) return;
@@ -138,6 +166,10 @@ export function FeedPage() {
   const canPreviousStories = storyPage > 0;
   const canNextStories = storyPage < storyPageCount - 1;
   const openStoryGroup = (group) => {
+    if (group.isOwner && !hasStories(group)) {
+      onCreateStory?.();
+      return;
+    }
     setViewerUserId(group.userId);
   };
 
@@ -150,10 +182,15 @@ export function FeedPage() {
               <div className="grid gap-x-3 gap-y-4" style={{ gridTemplateColumns: `repeat(${storiesPerPage}, minmax(0, 1fr))` }}>
                 {visibleStoryGroups.map((group) => (
                   <button key={group.userId} onClick={() => openStoryGroup(group)} className="flex min-w-0 flex-col items-center gap-1.5">
-                    <div className="rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-[2.5px]">
+                    <div className={`relative rounded-full p-[2.5px] ${getStoryRingClass(group)}`}>
                       <div className="rounded-full bg-white p-[2px] dark:bg-black">
                         <img src={group.profileImageUrl} alt="" className="h-14 w-14 rounded-full object-cover sm:h-[58px] sm:w-[58px]" />
                       </div>
+                      {group.isOwner && !hasStories(group) && (
+                        <span className="absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-white text-black shadow-sm ring-1 ring-gray-300 dark:border-black dark:bg-zinc-900 dark:text-white dark:ring-zinc-700">
+                          <Plus className="h-3.5 w-3.5" />
+                        </span>
+                      )}
                     </div>
                     <span className="w-16 truncate text-center text-[11px] text-gray-500">{group.isOwner ? t("yourStory") : group.username}</span>
                   </button>
@@ -205,7 +242,13 @@ export function FeedPage() {
         </div>
       </div>
       {viewerUserId !== null && viewerInitialIndex >= 0 && (
-        <StoryViewer groups={viewableStoryGroups} initialIndex={viewerInitialIndex} onClose={() => setViewerUserId(null)} onDeleted={loadStories} />
+        <StoryViewer
+          groups={viewableStoryGroups}
+          initialIndex={viewerInitialIndex}
+          onClose={() => setViewerUserId(null)}
+          onDeleted={loadStories}
+          onViewed={loadStories}
+        />
       )}
       {selectedPostId && <PostDetailModal postId={selectedPostId} onClose={() => setSelectedPostId(null)} onChanged={reloadFeed} />}
     </div>
