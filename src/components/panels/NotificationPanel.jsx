@@ -22,6 +22,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedPostId, setSelectedPostId] = useState(null);
+  const [loadedAt, setLoadedAt] = useState(Date.now());
   /** 알림 패널에서 follow / unfollow 요청 처리 중인 상대 유저 id 목록 */
   const [pendingFollowUserIds, setPendingFollowUserIds] = useState([]);
 
@@ -34,6 +35,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
       const [notificationResult, requestResult] = await Promise.all([getNotifications(), getFollowRequests()]);
       setNotifications(notificationResult.notifications);
       setRequests(requestResult.requests);
+      setLoadedAt(Date.now());
     } catch {
       setError(t("notificationsLoadFailed"));
     } finally {
@@ -158,6 +160,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
                           onNotificationClick={handleNotificationClick}
                           onToggleFollow={handleToggleFollow}
                           followActionLoading={pendingFollowUserIds.includes(item.actorUserId)}
+                          loadedAt={loadedAt}
                         />
                       ))
                     : <p className="text-sm text-gray-500">{t("noTodayNotifications")}</p>}
@@ -175,6 +178,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
                           onNotificationClick={handleNotificationClick}
                           onToggleFollow={handleToggleFollow}
                           followActionLoading={pendingFollowUserIds.includes(item.actorUserId)}
+                          loadedAt={loadedAt}
                         />
                       ))
                     : <p className="text-sm text-gray-500">{t("noWeekNotifications")}</p>}
@@ -211,7 +215,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
                         <Link to={`/profile/${request.requesterName}`} className="text-sm font-bold hover:underline">
                           {request.requesterName}
                         </Link>
-                        <p className="w-36 truncate text-sm text-gray-500">{formatRelativeTime(request.createdAt)}</p>
+                        <p className="w-36 truncate text-sm text-gray-500">{formatRelativeTime(request.createdAt, loadedAt)}</p>
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -229,7 +233,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
   );
 }
 
-function NotificationItem({ item, t, onOpenPostDetail, onOpenProfile, onNotificationClick, onToggleFollow, followActionLoading }) {
+function NotificationItem({ item, t, onOpenPostDetail, onOpenProfile, onNotificationClick, onToggleFollow, followActionLoading, loadedAt }) {
   const message = getNotificationMessage(item, t);
   const targetPostId = Number(item.targetId);
   const canOpenTargetPost = Number.isFinite(targetPostId);
@@ -265,7 +269,7 @@ function NotificationItem({ item, t, onOpenPostDetail, onOpenProfile, onNotifica
             <span className="font-bold">{item.actorName}</span>
           ) : null}
           {message}
-          <span className="ml-1 text-xs text-gray-500">{formatRelativeTime(item.createdAt)}</span>
+          <span className="ml-1 text-xs text-gray-500">{formatRelativeTime(item.createdAt, loadedAt)}</span>
         </p>
       </div>
       {item.targetImageUrl && canOpenTargetPost ? (
