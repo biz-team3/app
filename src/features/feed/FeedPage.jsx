@@ -6,6 +6,7 @@ import { getFeedStories, getStoryBundle } from "../../api/storiesApi.js";
 import { StoryViewer } from "../story/StoryViewer.jsx";
 import { PostCard } from "../post/PostCard.jsx";
 import { PostDetailModal } from "../post/PostDetailModal.jsx";
+import { PostEditModal } from "../../components/modals/PostEditModal.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useLanguage } from "../../hooks/useLanguage.js";
 
@@ -67,6 +68,7 @@ export function FeedPage() {
   const [storiesPerPage, setStoriesPerPage] = useState(getStoriesPerPage);
   const [viewerUserId, setViewerUserId] = useState(null);
   const [selectedPostId, setSelectedPostId] = useState(null);
+  const [editingPost, setEditingPost] = useState(null);
   const [page, setPage] = useState(0);
   const [hasNext, setHasNext] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -250,7 +252,26 @@ export function FeedPage() {
           onViewed={loadStories}
         />
       )}
-      {selectedPostId && <PostDetailModal postId={selectedPostId} onClose={() => setSelectedPostId(null)} onChanged={reloadFeed} />}
+      {selectedPostId && (
+        <PostDetailModal
+          postId={selectedPostId}
+          onClose={() => setSelectedPostId(null)}
+          onChanged={reloadFeed}
+          onEdit={setEditingPost}
+        />
+      )}
+      {editingPost && (
+        <PostEditModal
+          post={editingPost}
+          isOpen={Boolean(editingPost)}
+          onClose={() => setEditingPost(null)}
+          onSaved={() => {
+            setEditingPost(null);
+            setSelectedPostId(null);
+            reloadFeed();
+          }}
+        />
+      )}
     </div>
   );
 }
