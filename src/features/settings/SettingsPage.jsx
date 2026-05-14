@@ -1,13 +1,13 @@
 import { useNavigate } from "react-router-dom";
-import { ProfileEditModal } from "../../components/modals/ProfileEditModal.jsx";
+import { SystemSettingsModal } from "../../components/modals/SystemSettingsModal.jsx";
 
 export function SettingsPage() {
   const navigate = useNavigate();
 
   return (
-    <ProfileEditModal
+    <SystemSettingsModal
       isOpen
-      onClose={() => navigate("/profile", { replace: true })}
+      onClose={() => navigate("/", { replace: true })}
     />
   );
 }

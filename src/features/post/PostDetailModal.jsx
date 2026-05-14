@@ -2,11 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { Bookmark, ChevronLeft, ChevronRight, Heart, Loader2, MessageCircle, MoreHorizontal, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createComment, deleteComment, getPostComments, updateComment } from "../../api/commentsApi.js";
+import { getPreferences } from "../../api/preferencesApi.js";
 import { deletePost, getPostDetail, likePost, savePost, translatePostCaption, unlikePost, unsavePost } from "../../api/postsApi.js";
+import { HiddenTextBlock } from "../../components/content/HiddenTextBlock.jsx";
 import { useLanguage } from "../../hooks/useLanguage.js";
 import { ConfirmDialog } from "../../components/modals/ConfirmDialog.jsx";
 import { PostEditModal } from "../../components/modals/PostEditModal.jsx";
 import { formatRelativeTime } from "../../utils/format.js";
+import { containsHiddenWord, evaluateContentSafety } from "../../utils/hiddenWords.js";
 import { PostCaptionText } from "./PostCaptionText.jsx";
 
 const COMMENTS_PAGE_SIZE = 20;
@@ -35,6 +38,9 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
   const [editingCommentText, setEditingCommentText] = useState("");
   const [deletingComment, setDeletingComment] = useState(null);
   const [deletingPost, setDeletingPost] = useState(false);
+  const [hiddenWordsEnabled, setHiddenWordsEnabled] = useState(false);
+  const [hiddenWords, setHiddenWords] = useState([]);
+  const [contentWarningAction, setContentWarningAction] = useState(null);
   const commentsScrollRef = useRef(null);
   const commentsSentinelRef = useRef(null);
   const captionRef = useRef(null);
@@ -121,6 +127,19 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
   }, []);
 
   useEffect(() => {
+    const loadPreferences = () => {
+      getPreferences().then((preferences) => {
+        setHiddenWordsEnabled(Boolean(preferences.hiddenWordsEnabled));
+        setHiddenWords(preferences.hiddenWords || []);
+      });
+    };
+
+    loadPreferences();
+    window.addEventListener("preferences:changed", loadPreferences);
+    return () => window.removeEventListener("preferences:changed", loadPreferences);
+  }, []);
+
+  useEffect(() => {
     if (!post || captionExpanded) return undefined;
 
     const measureCaption = () => {
@@ -154,6 +173,7 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
   const canManagePost = post.isOwner;
   const canCreateComment = commentText.trim().length > 0;
   const captionText = captionTranslated ? translatedCaption : post.caption;
+  const captionHidden = hiddenWordsEnabled && containsHiddenWord(captionText, hiddenWords);
 
   const toggleLike = async () => {
     setActionError("");
@@ -179,9 +199,21 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
     }
   };
 
-  const handleCreateComment = async (event) => {
-    event.preventDefault();
+  const submitCreateComment = async ({ skipSafety = false } = {}) => {
     if (!commentText.trim()) return;
+    const safety = evaluateContentSafety(commentText);
+
+    if (!skipSafety && safety.blocked) {
+      setActionError(t("contentBlockedDesc"));
+      return;
+    }
+
+    if (!skipSafety && safety.warning) {
+      setContentWarningAction("createComment");
+      return;
+    }
+
+    setContentWarningAction(null);
     setActionError("");
     try {
       await createComment(post.postId, { text: commentText });
@@ -193,13 +225,32 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
     }
   };
 
+  const handleCreateComment = (event) => {
+    event.preventDefault();
+    submitCreateComment();
+  };
+
   const startEditComment = (comment) => {
     setEditingCommentId(comment.commentId);
     setEditingCommentText(comment.text);
+    setContentWarningAction(null);
   };
 
-  const handleUpdateComment = async () => {
+  const handleUpdateComment = async ({ skipSafety = false } = {}) => {
     if (!editingCommentText.trim()) return;
+    const safety = evaluateContentSafety(editingCommentText);
+
+    if (!skipSafety && safety.blocked) {
+      setActionError(t("contentBlockedDesc"));
+      return;
+    }
+
+    if (!skipSafety && safety.warning) {
+      setContentWarningAction("updateComment");
+      return;
+    }
+
+    setContentWarningAction(null);
     setActionError("");
     try {
       await updateComment(editingCommentId, { text: editingCommentText.trim() });
@@ -352,14 +403,26 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
 
           <div ref={commentsScrollRef} className="flex-1 overflow-y-auto px-4 py-4">
             <div className="mb-5 text-sm">
-              <PostCaptionText
-                ref={captionRef}
-                caption={captionText || ""}
-                collapsed={!captionExpanded}
-                maxHeight={`${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em`}
-                className="leading-relaxed"
-              />
-              {captionNeedsPreview && (
+              {captionHidden ? (
+                <HiddenTextBlock>
+                  <PostCaptionText
+                    ref={captionRef}
+                    caption={captionText || ""}
+                    collapsed={!captionExpanded}
+                    maxHeight={`${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em`}
+                    className="leading-relaxed"
+                  />
+                </HiddenTextBlock>
+              ) : (
+                <PostCaptionText
+                  ref={captionRef}
+                  caption={captionText || ""}
+                  collapsed={!captionExpanded}
+                  maxHeight={`${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em`}
+                  className="leading-relaxed"
+                />
+              )}
+              {!captionHidden && captionNeedsPreview && (
                 <button
                   onClick={() => setCaptionExpanded((value) => !value)}
                   className="mt-1 font-semibold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
@@ -399,6 +462,15 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
                           </button>
                         </div>
                       </div>
+                    ) : hiddenWordsEnabled && containsHiddenWord(comment.text, hiddenWords) ? (
+                      <HiddenTextBlock>
+                        <p className="leading-relaxed break-words [overflow-wrap:anywhere] [white-space:break-spaces]">
+                          <Link to={`/profile/${comment.author.username}`} onClick={onClose} className="mr-2 font-bold hover:underline">
+                            {comment.author.username}
+                          </Link>
+                          {comment.text}
+                        </p>
+                      </HiddenTextBlock>
                     ) : (
                       <p className="leading-relaxed break-words [overflow-wrap:anywhere] [white-space:break-spaces]">
                         <Link to={`/profile/${comment.author.username}`} onClick={onClose} className="mr-2 font-bold hover:underline">
@@ -473,6 +545,19 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
           destructive
           onConfirm={handleDeletePost}
           onCancel={() => setDeletingPost(false)}
+        />
+      )}
+      {contentWarningAction && (
+        <ConfirmDialog
+          title={t("contentWarningTitle")}
+          description={t("contentWarningDesc")}
+          confirmLabel={t("continuePosting")}
+          cancelLabel={t("cancel")}
+          onConfirm={() => {
+            if (contentWarningAction === "createComment") submitCreateComment({ skipSafety: true });
+            if (contentWarningAction === "updateComment") handleUpdateComment({ skipSafety: true });
+          }}
+          onCancel={() => setContentWarningAction(null)}
         />
       )}
       <div onMouseDown={(event) => event.stopPropagation()}>

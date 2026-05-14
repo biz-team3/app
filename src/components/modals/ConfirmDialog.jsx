@@ -7,7 +7,7 @@ export function ConfirmDialog({ title, description, confirmLabel, cancelLabel, d
       >
         <div>
           <h2 className="text-base font-bold text-gray-950 dark:text-white">{title}</h2>
-          {description ? <p className="mt-2 text-sm leading-relaxed text-gray-500 dark:text-gray-400">{description}</p> : null}
+          {description ? <p className="mt-2 break-keep text-sm leading-relaxed text-gray-500 [overflow-wrap:normal] dark:text-gray-400">{description}</p> : null}
         </div>
         <div className="mt-6 flex justify-end gap-2">
           <button onClick={onCancel} className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-bold text-gray-900 hover:bg-gray-200 dark:bg-zinc-900 dark:text-gray-100 dark:hover:bg-zinc-800">
