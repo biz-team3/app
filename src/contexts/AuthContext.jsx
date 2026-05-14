@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { getMe, login as loginApi, logout as logoutApi } from "../api/authApi.js";
-import { AUTH_TOKEN_KEY, AUTH_USER_KEY, clearAccessToken, getAccessToken, readStorage } from "../api/mockClient.js";
+import { AUTH_TOKEN_KEY, AUTH_USER_KEY, clearAccessToken, getAccessToken, readStorage } from "../api/apiClient.js";
 
 const AuthContext = createContext(null);
 

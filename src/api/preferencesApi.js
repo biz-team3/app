@@ -1,4 +1,4 @@
-import { PREFERENCES_KEY, mockResponse, readStorage, writeStorage } from "./mockClient.js";
+import { PREFERENCES_KEY, readStorage, writeStorage } from "./apiClient.js";
 import { DEFAULT_HIDDEN_WORDS } from "../utils/hiddenWords.js";
 
 const defaults = {
@@ -10,9 +10,9 @@ const defaults = {
 };
 
 export async function getPreferences() {
-  return mockResponse(readStorage(PREFERENCES_KEY, defaults));
+  return Promise.resolve(readStorage(PREFERENCES_KEY, defaults));
 }
 
 export async function savePreferences(payload) {
-  return mockResponse(writeStorage(PREFERENCES_KEY, { ...defaults, ...readStorage(PREFERENCES_KEY, defaults), ...payload }));
+  return Promise.resolve(writeStorage(PREFERENCES_KEY, { ...defaults, ...readStorage(PREFERENCES_KEY, defaults), ...payload }));
 }
