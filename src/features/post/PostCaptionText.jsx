@@ -6,8 +6,10 @@ export const PostCaptionText = forwardRef(function PostCaptionText(
   ref,
 ) {
   const tokens = splitCaptionTokens(caption);
+  // pre-line은 직접 입력한 줄바꿈만 보존하고, text-left 계열은 양끝 정렬식 간격 벌어짐을 막음
+  // keep-all은 한글/영문 단어 중간 줄바꿈을 줄임
   const captionClassName = [
-    "whitespace-pre-wrap [word-break:keep-all]",
+    "whitespace-pre-line text-left [text-align-last:left] [word-break:keep-all]",
     collapsed ? "overflow-hidden" : "",
     className,
   ].filter(Boolean).join(" ");
