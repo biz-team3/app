@@ -324,7 +324,7 @@ export function PostDetailModal({ postId, onClose, onChanged }) {
                   onClick={() => setCaptionExpanded((value) => !value)}
                   className="mt-1 font-semibold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                 >
-                  {captionExpanded ? "접기" : "더 보기"}
+                  {captionExpanded ? t("close") : t("more")}
                 </button>
               )}
             </div>
