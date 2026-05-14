@@ -12,7 +12,7 @@ const COMMENTS_PAGE_SIZE = 20;
 const CAPTION_PREVIEW_LINES = 3;
 const CAPTION_LINE_HEIGHT = 1.625;
 
-export function PostDetailModal({ postId, onClose, onChanged }) {
+export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
   const { t } = useLanguage();
   const [post, setPost] = useState(null);
   const [comments, setComments] = useState([]);
@@ -144,6 +144,7 @@ export function PostDetailModal({ postId, onClose, onChanged }) {
   const mediaCount = post.media.length;
   const postCreatedAtText = formatRelativeTime(post.createdAt);
   const canManagePost = post.isOwner;
+  const canCreateComment = commentText.trim().length > 0;
 
   const toggleLike = async () => {
     setActionError("");
@@ -286,8 +287,13 @@ export function PostDetailModal({ postId, onClose, onChanged }) {
                     <div className="absolute right-0 top-8 z-20 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white text-sm shadow-xl dark:border-gray-800 dark:bg-gray-950">
                       <button
                         onClick={() => {
-                          setEditOpen(true);
                           setMenuOpen(false);
+                          if (onEdit) {
+                            onEdit(post);
+                            onClose();
+                            return;
+                          }
+                          setEditOpen(true);
                         }}
                         className="block w-full px-4 py-3 text-left font-semibold hover:bg-gray-50 dark:hover:bg-gray-900"
                       >
@@ -397,7 +403,12 @@ export function PostDetailModal({ postId, onClose, onChanged }) {
             </div>
             <form onSubmit={handleCreateComment} className="flex items-center gap-3 border-t border-gray-100 px-4 py-3 dark:border-gray-800">
               <input value={commentText} onChange={(event) => setCommentText(event.target.value)} placeholder={t("addComment")} className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
-              <button className="text-sm font-bold text-blue-500">{t("post")}</button>
+              <button
+                disabled={!canCreateComment}
+                className="text-sm font-bold text-blue-500 disabled:cursor-not-allowed disabled:text-gray-300 dark:disabled:text-gray-700"
+              >
+                {t("post")}
+              </button>
             </form>
           </footer>
         </div>
