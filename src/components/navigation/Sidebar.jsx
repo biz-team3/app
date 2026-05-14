@@ -55,7 +55,7 @@ export function Sidebar({ onCreate, onNotifications, notificationBadgeCount = 0,
             <>
               <span className="relative shrink-0">
                 <Icon className={`h-6 w-6 ${active ? "stroke-[3]" : ""}`} />
-                {item.badge && <span className="absolute -right-2 -top-2 rounded-full bg-[#ff3040] px-1.5 text-[10px] font-bold text-white">{item.badge}</span>}
+                {item.badge > 0 && <span className="absolute -right-2 -top-2 rounded-full bg-[#ff3040] px-1.5 text-[10px] font-bold text-white">{item.badge}</span>}
               </span>
               <span className={`${expanded ? "max-w-[150px] opacity-100" : "max-w-0 opacity-0"} overflow-hidden whitespace-nowrap transition-all`}>{item.label}</span>
             </>

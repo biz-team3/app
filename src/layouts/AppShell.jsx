@@ -29,7 +29,7 @@ export function AppShell() {
   const refreshNotificationSummary = useCallback(async () => {
     try {
       const summary = await getNotificationSummary();
-      setNotificationBadgeCount(summary.totalBadgeCount);
+      setNotificationBadgeCount(Number(summary.totalBadgeCount) || 0);
     } catch {
       setNotificationBadgeCount(0);
     }
