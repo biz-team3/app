@@ -5,22 +5,22 @@ import { CreatePostModal } from "../components/modals/CreatePostModal.jsx";
 import { CreateStoryModal } from "../components/modals/CreateStoryModal.jsx";
 import { CreateTypeModal } from "../components/modals/CreateTypeModal.jsx";
 import { ProfileEditModal } from "../components/modals/ProfileEditModal.jsx";
+import { SystemSettingsModal } from "../components/modals/SystemSettingsModal.jsx";
 import { NotificationPanel } from "../components/panels/NotificationPanel.jsx";
 import { Sidebar } from "../components/navigation/Sidebar.jsx";
 import { MobileHeader } from "../components/navigation/MobileHeader.jsx";
 import { BottomNav } from "../components/navigation/BottomNav.jsx";
 import { useAuth } from "../hooks/useAuth.js";
-import { useTheme } from "../hooks/useTheme.js";
 
 export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
-  const { toggleTheme } = useTheme();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [createTypeOpen, setCreateTypeOpen] = useState(false);
   const [createPostOpen, setCreatePostOpen] = useState(false);
   const [createStoryOpen, setCreateStoryOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [profileEditOpen, setProfileEditOpen] = useState(false);
   const [feedVersion, setFeedVersion] = useState(0);
   const [notificationBadgeCount, setNotificationBadgeCount] = useState(0);
@@ -68,8 +68,8 @@ export function AppShell() {
         onCreate={() => setCreateTypeOpen(true)}
         onNotifications={() => setNotificationsOpen(true)}
         notificationBadgeCount={notificationBadgeCount}
-        onSettings={() => setProfileEditOpen(true)}
-        onThemeToggle={toggleTheme}
+        onSettings={() => setSettingsOpen(true)}
+        onAccount={() => setProfileEditOpen(true)}
         onLogout={handleLogout}
       />
       <main className="min-h-screen pt-14 md:ml-20 md:pt-0 xl:ml-[244px]">
@@ -92,6 +92,7 @@ export function AppShell() {
       />
       <CreatePostModal isOpen={createPostOpen} onClose={() => setCreatePostOpen(false)} onCreated={handleCreated} />
       <CreateStoryModal isOpen={createStoryOpen} onClose={() => setCreateStoryOpen(false)} onCreated={handleCreated} />
+      <SystemSettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <ProfileEditModal isOpen={profileEditOpen} onClose={() => setProfileEditOpen(false)} onSaved={handleCreated} />
     </div>
   );
