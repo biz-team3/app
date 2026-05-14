@@ -5,7 +5,9 @@ import { createPost } from "../../api/postsApi.js";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useLanguage } from "../../hooks/useLanguage.js";
 import { extractHashtags } from "../../utils/hashtags.js";
+import { evaluateContentSafety } from "../../utils/hiddenWords.js";
 import { IMAGE_FILE_ACCEPT, validateImageFiles } from "../../utils/mediaValidation.js";
+import { ConfirmDialog } from "./ConfirmDialog.jsx";
 
 export function CreatePostModal({ isOpen, onClose, onCreated }) {
   const [step, setStep] = useState(1);
@@ -14,6 +16,7 @@ export function CreatePostModal({ isOpen, onClose, onCreated }) {
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [warningOpen, setWarningOpen] = useState(false);
   const { user } = useAuth();
   const { t } = useLanguage();
 
@@ -31,6 +34,7 @@ export function CreatePostModal({ isOpen, onClose, onCreated }) {
     setStep(1);
     setSubmitting(false);
     setError("");
+    setWarningOpen(false);
   };
 
   const handleClose = () => {
@@ -68,8 +72,21 @@ export function CreatePostModal({ isOpen, onClose, onCreated }) {
     setActiveMediaIndex((current) => (current < mediaDrafts.length - 1 ? current + 1 : 0));
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async ({ skipSafety = false } = {}) => {
     if (mediaDrafts.length === 0 || submitting) return;
+    const safety = evaluateContentSafety(caption);
+
+    if (!skipSafety && safety.blocked) {
+      setError(t("contentBlockedDesc"));
+      return;
+    }
+
+    if (!skipSafety && safety.warning) {
+      setWarningOpen(true);
+      return;
+    }
+
+    setWarningOpen(false);
     setSubmitting(true);
     setError("");
     try {
@@ -155,6 +172,16 @@ export function CreatePostModal({ isOpen, onClose, onCreated }) {
           </div>
         )}
       </div>
+      {warningOpen && (
+        <ConfirmDialog
+          title={t("contentWarningTitle")}
+          description={t("contentWarningDesc")}
+          confirmLabel={t("continuePosting")}
+          cancelLabel={t("cancel")}
+          onConfirm={() => handleSubmit({ skipSafety: true })}
+          onCancel={() => setWarningOpen(false)}
+        />
+      )}
     </div>
   );
 }

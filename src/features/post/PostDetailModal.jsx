@@ -9,7 +9,7 @@ import { useLanguage } from "../../hooks/useLanguage.js";
 import { ConfirmDialog } from "../../components/modals/ConfirmDialog.jsx";
 import { PostEditModal } from "../../components/modals/PostEditModal.jsx";
 import { formatRelativeTime } from "../../utils/format.js";
-import { containsHiddenWord } from "../../utils/hiddenWords.js";
+import { containsHiddenWord, evaluateContentSafety } from "../../utils/hiddenWords.js";
 import { PostCaptionText } from "./PostCaptionText.jsx";
 
 const COMMENTS_PAGE_SIZE = 20;
@@ -37,6 +37,7 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
   const [deletingPost, setDeletingPost] = useState(false);
   const [hiddenWordsEnabled, setHiddenWordsEnabled] = useState(false);
   const [hiddenWords, setHiddenWords] = useState([]);
+  const [contentWarningAction, setContentWarningAction] = useState(null);
   const commentsScrollRef = useRef(null);
   const commentsSentinelRef = useRef(null);
   const captionRef = useRef(null);
@@ -190,9 +191,21 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
     }
   };
 
-  const handleCreateComment = async (event) => {
-    event.preventDefault();
+  const submitCreateComment = async ({ skipSafety = false } = {}) => {
     if (!commentText.trim()) return;
+    const safety = evaluateContentSafety(commentText);
+
+    if (!skipSafety && safety.blocked) {
+      setActionError(t("contentBlockedDesc"));
+      return;
+    }
+
+    if (!skipSafety && safety.warning) {
+      setContentWarningAction("createComment");
+      return;
+    }
+
+    setContentWarningAction(null);
     setActionError("");
     try {
       await createComment(post.postId, { text: commentText });
@@ -204,13 +217,32 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
     }
   };
 
+  const handleCreateComment = (event) => {
+    event.preventDefault();
+    submitCreateComment();
+  };
+
   const startEditComment = (comment) => {
     setEditingCommentId(comment.commentId);
     setEditingCommentText(comment.text);
+    setContentWarningAction(null);
   };
 
-  const handleUpdateComment = async () => {
+  const handleUpdateComment = async ({ skipSafety = false } = {}) => {
     if (!editingCommentText.trim()) return;
+    const safety = evaluateContentSafety(editingCommentText);
+
+    if (!skipSafety && safety.blocked) {
+      setActionError(t("contentBlockedDesc"));
+      return;
+    }
+
+    if (!skipSafety && safety.warning) {
+      setContentWarningAction("updateComment");
+      return;
+    }
+
+    setContentWarningAction(null);
     setActionError("");
     try {
       await updateComment(editingCommentId, { text: editingCommentText.trim() });
@@ -472,6 +504,19 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
           destructive
           onConfirm={handleDeletePost}
           onCancel={() => setDeletingPost(false)}
+        />
+      )}
+      {contentWarningAction && (
+        <ConfirmDialog
+          title={t("contentWarningTitle")}
+          description={t("contentWarningDesc")}
+          confirmLabel={t("continuePosting")}
+          cancelLabel={t("cancel")}
+          onConfirm={() => {
+            if (contentWarningAction === "createComment") submitCreateComment({ skipSafety: true });
+            if (contentWarningAction === "updateComment") handleUpdateComment({ skipSafety: true });
+          }}
+          onCancel={() => setContentWarningAction(null)}
         />
       )}
       <div onMouseDown={(event) => event.stopPropagation()}>
