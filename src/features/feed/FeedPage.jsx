@@ -204,6 +204,8 @@ export function FeedPage() {
   const storyPageCount = Math.ceil(storyGroups.length / storyLayout.visibleCount);
   const canPreviousStories = storyPage > 0;
   const canNextStories = storyPage < storyPageCount - 1;
+  const storyRailAlignClass = canPreviousStories ? "justify-center" : "justify-start";
+  const storyRailLeftSpace = canPreviousStories ? storyLayout.navSideSpace : 0;
   const openStoryGroup = (group) => {
     if (group.isOwner && !hasStories(group)) {
       onCreateStory?.();
@@ -219,9 +221,9 @@ export function FeedPage() {
           <section className="border-b border-gray-100 py-4 dark:border-gray-900">
             <div className="relative px-2">
               <div
-                className="flex justify-center gap-3 overflow-hidden"
+                className={`flex gap-3 overflow-hidden ${storyRailAlignClass}`}
                 style={{
-                  paddingLeft: `${storyLayout.navSideSpace}px`,
+                  paddingLeft: `${storyRailLeftSpace}px`,
                   paddingRight: `${storyLayout.navSideSpace}px`,
                 }}
               >
