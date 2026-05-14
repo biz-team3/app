@@ -138,10 +138,11 @@ function normalizeProfilePost(post = {}) {
 	};
 }
 
-export async function getProfilePosts(userId, { page = 0, size = 12 } = {}) {
+export async function getProfilePosts(userId, { page = 0, size = 12, type = "POSTS" } = {}) {
 	const params = new URLSearchParams({
 		page: String(page),
 		size: String(size),
+		type,
 	});
 	const result = await apiRequest(`/api/profiles/users/${userId}/posts?${params.toString()}`);
 	const pageRequest = result.pageRequest || { page, size };
