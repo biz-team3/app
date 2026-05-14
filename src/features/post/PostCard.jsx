@@ -104,7 +104,9 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
     <article className="overflow-hidden bg-white shadow-sm dark:bg-black md:rounded-xl md:border md:border-gray-200 md:dark:border-gray-800">
       <header className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3">
-          <img src={post.author.profileImageUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
+          <Link to={`/profile/${post.author.username}`}>
+            <img src={post.author.profileImageUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
+          </Link>
           <div>
             <Link to={`/profile/${post.author.username}`} className="text-sm font-bold hover:underline">
               {post.author.username}

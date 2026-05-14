@@ -265,7 +265,9 @@ export function PostDetailModal({ postId, onClose, onChanged }) {
         <div className="flex min-h-0 flex-col border-l border-gray-200 dark:border-gray-800">
           <header className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
             <div className="flex items-center gap-3">
-              <img src={post.author.profileImageUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
+              <Link to={`/profile/${post.author.username}`} onClick={onClose}>
+                <img src={post.author.profileImageUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
+              </Link>
               <Link to={`/profile/${post.author.username}`} onClick={onClose} className="text-sm font-bold hover:underline">
                 {post.author.username}
               </Link>
