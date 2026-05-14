@@ -1,7 +1,6 @@
-import { canViewerSeeUser, db, findUserById, getCurrentUser, getProfileImage, nextId } from "../mocks/db.js";
+import { canViewerSeeUser, db, findUserById, getCurrentUser, getProfileImage } from "../mocks/db.js";
 import { extractHashtags } from "../utils/hashtags.js";
-import { apiRequest, mockError, mockResponse } from "./mockClient.js";
-import { createPageResponseFromItems } from "./pageResponse.js";
+import { apiRequest } from "./mockClient.js";
 
 function toMediaItem(item, postId, index) {
   const rawUrl = item.previewUrl || item.url || "";
@@ -92,7 +91,6 @@ export async function createPost(payload) {
         originalFileName: item.originalFileName,
       })),
       caption,
-      translatedCaption: payload.translatedCaption || caption,
     }),
   });
 
@@ -100,18 +98,27 @@ export async function createPost(payload) {
 }
 
 export async function updatePostCaption(postId, payload) {
-  const response = await apiRequest(`/api/posts/${postId}`, {
+  await apiRequest(`/api/posts/${postId}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
       caption: payload.caption,
-      translatedCaption: payload.translatedCaption,
     }),
   });
 
   return null;
+}
+
+export async function translatePostCaption(postId) {
+  return apiRequest("/api/translations", {
+    method: "POST",
+    body: JSON.stringify({
+      targetType: "POST",
+      targetId: postId,
+    }),
+  });
 }
 
 export async function replacePostMedia(postId, payload) {
