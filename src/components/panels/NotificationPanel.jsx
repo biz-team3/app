@@ -107,6 +107,11 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
     }
   };
 
+  const handlePostDetailChanged = async () => {
+    await onChanged?.();
+    await load();
+  };
+
   if (!isOpen) return null;
 
   const todayNotifications = notifications.filter((item) => getNotificationPeriod(item.createdAt) === "today");
@@ -228,7 +233,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
           </>
         )}
       </aside>
-      {selectedPostId && <PostDetailModal postId={selectedPostId} onClose={() => setSelectedPostId(null)} onChanged={onChanged} />}
+      {selectedPostId && <PostDetailModal postId={selectedPostId} onClose={() => setSelectedPostId(null)} onChanged={handlePostDetailChanged} />}
     </>
   );
 }
