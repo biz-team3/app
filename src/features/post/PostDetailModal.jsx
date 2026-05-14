@@ -340,9 +340,11 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
             <div className="flex flex-col gap-4">
               {comments.map((comment) => (
                 <div key={comment.commentId} className="flex gap-3 text-sm">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-bold dark:bg-gray-900">
-                    {comment.author.username.slice(0, 1).toUpperCase()}
-                  </div>
+                  <Link to={`/profile/${comment.author.username}`} onClick={onClose}>
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-bold dark:bg-gray-900">
+                      {comment.author.username.slice(0, 1).toUpperCase()}
+                    </div>
+                  </Link>
                   <div className="min-w-0 flex-1">
                     {editingCommentId === comment.commentId ? (
                       <div className="rounded-xl border border-gray-200 p-2 dark:border-gray-800">
@@ -363,7 +365,9 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
                       </div>
                     ) : (
                       <p className="leading-relaxed break-words [overflow-wrap:anywhere] [white-space:break-spaces]">
-                        <span className="mr-2 font-bold">{comment.author.username}</span>
+                        <Link to={`/profile/${comment.author.username}`} onClick={onClose} className="mr-2 font-bold hover:underline">
+                          {comment.author.username}
+                        </Link>
                         {comment.text}
                       </p>
                     )}
