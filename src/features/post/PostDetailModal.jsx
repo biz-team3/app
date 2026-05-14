@@ -441,7 +441,17 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
                 <div key={comment.commentId} className="flex gap-3 text-sm">
                   <Link to={`/profile/${comment.author.username}`} onClick={onClose}>
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-bold dark:bg-gray-900">
-                      {comment.author.username.slice(0, 1).toUpperCase()}
+                      {comment.author.profileImageUrl ? (
+                        <img
+                          src={comment.author.profileImageUrl}
+                          alt=""
+                          className="h-8 w-8 shrink-0 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-bold dark:bg-gray-900">
+                          {comment.author.username.slice(0, 1).toUpperCase()}
+                        </div>
+                      )}
                     </div>
                   </Link>
                   <div className="min-w-0 flex-1">

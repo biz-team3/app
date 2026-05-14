@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, X } from "lucide-react";
+import { X } from "lucide-react";
 import { followUser, getFollowers, getFollowing, unfollowUser } from "../../api/followsApi.js";
 import { useLanguage } from "../../hooks/useLanguage.js";
 
@@ -13,7 +13,6 @@ export function FollowListModal({ type, userId, onClose, onChanged }) {
   const [hasNext, setHasNext] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [query, setQuery] = useState("");
   const sentinelRef = useRef(null);
   const loadingRef = useRef(false);
 
@@ -26,7 +25,7 @@ export function FollowListModal({ type, userId, onClose, onChanged }) {
 
       try {
         const request = type === "followers" ? getFollowers : getFollowing;
-        const result = await request(userId, { page: targetPage, size: FOLLOW_LIST_PAGE_SIZE, query });
+        const result = await request(userId, { page: targetPage, size: FOLLOW_LIST_PAGE_SIZE });
         setUsers((current) => (mode === "append" ? [...current, ...result.content] : result.content));
         setPage(result.pageRequest.page);
         setHasNext(result.hasNext);
@@ -37,7 +36,7 @@ export function FollowListModal({ type, userId, onClose, onChanged }) {
         loadingRef.current = false;
       }
     },
-    [query, t, type, userId],
+    [t, type, userId],
   );
 
   useEffect(() => {
@@ -46,10 +45,6 @@ export function FollowListModal({ type, userId, onClose, onChanged }) {
     setHasNext(false);
     loadPage(0, "replace");
   }, [loadPage]);
-
-  useEffect(() => {
-    setQuery("");
-  }, [type, userId]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -91,25 +86,13 @@ export function FollowListModal({ type, userId, onClose, onChanged }) {
         className="flex max-h-[520px] w-full max-w-[420px] flex-col overflow-hidden rounded-xl bg-white shadow-2xl dark:bg-black"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <header className="grid h-12 grid-cols-3 items-center border-b border-gray-200 px-4 dark:border-gray-800">
+        <header className="grid grid-cols-3 items-center border-b border-gray-200 px-4 py-4 dark:border-gray-800">
           <div />
-          <h2 className="text-center text-sm font-bold">{type === "followers" ? t("followers") : t("followingCount")}</h2>
+          <h2 className="text-center text-sm font-bold leading-none">{type === "followers" ? t("followers") : t("followingCount")}</h2>
           <button onClick={onClose} className="justify-self-end rounded-full p-1 hover:bg-gray-100 dark:hover:bg-gray-900">
             <X className="h-5 w-5" />
           </button>
         </header>
-
-        <div className="border-b border-gray-100 p-3 dark:border-gray-900">
-          <label className="flex h-10 items-center gap-2 rounded-lg bg-gray-100 px-3 text-sm dark:bg-gray-900">
-            <Search className="h-4 w-4 shrink-0 text-gray-400" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={t("searchUsers")}
-              className="min-w-0 flex-1 bg-transparent outline-none"
-            />
-          </label>
-        </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-2">
           {error ? (
@@ -149,7 +132,7 @@ export function FollowListModal({ type, userId, onClose, onChanged }) {
             <div className="px-6 py-14 text-center text-sm font-semibold text-gray-400">{t("loadingUsers")}</div>
           ) : (
             <div className="px-6 py-14 text-center text-sm text-gray-500">
-              {query ? t("noUserSearchResults") : type === "followers" ? t("noFollowers") : t("noFollowing")}
+              {type === "followers" ? t("noFollowers") : t("noFollowing")}
             </div>
           )}
         </div>
