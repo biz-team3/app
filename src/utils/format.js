@@ -4,11 +4,11 @@ export function formatCount(value) {
   return String(value);
 }
 
-export function formatRelativeTime(value) {
+export function formatRelativeTime(value, now = Date.now()) {
   const timestamp = Date.parse(value);
   if (Number.isNaN(timestamp)) return "";
 
-  const diffMs = Math.max(0, Date.now() - timestamp);
+  const diffMs = Math.max(0, now - timestamp);
   const minute = 60 * 1000;
   const hour = 60 * minute;
   const day = 24 * hour;
