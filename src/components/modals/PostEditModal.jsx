@@ -120,7 +120,6 @@ export function PostEditModal({ post, isOpen, onClose, onSaved }) {
     try {
       await updatePostCaption(post.postId, {
         caption: caption.trim(),
-        translatedCaption: caption.trim(),
         hashtags: extractHashtags(caption),
       });
 
