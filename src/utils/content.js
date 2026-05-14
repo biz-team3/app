@@ -1,7 +1,31 @@
+const HASHTAG_PATTERN = /#[\wㄱ-ㅎㅏ-ㅣ가-힣]+/g;
+
 export function extractHashtags(caption = "") {
-  return caption.match(/#[\wㄱ-ㅎㅏ-ㅣ가-힣]+/g) || [];
+  return caption.match(HASHTAG_PATTERN) || [];
 }
 
 export function stripHashtags(caption = "") {
-  return caption.replace(/#[\wㄱ-ㅎㅏ-ㅣ가-힣]+/g, "").trim();
+  return caption.replace(HASHTAG_PATTERN, "").trim();
+}
+
+export function splitCaptionTokens(caption = "") {
+  const tokens = [];
+  let lastIndex = 0;
+
+  // 해시태그만 별도 토큰으로 분리해서 렌더링 시 중간 줄바꿈을 막기 위함임
+  caption.replace(HASHTAG_PATTERN, (match, offset) => {
+    if (offset > lastIndex) {
+      tokens.push({ type: "text", text: caption.slice(lastIndex, offset) });
+    }
+
+    tokens.push({ type: "hashtag", text: match });
+    lastIndex = offset + match.length;
+    return match;
+  });
+
+  if (lastIndex < caption.length) {
+    tokens.push({ type: "text", text: caption.slice(lastIndex) });
+  }
+
+  return tokens;
 }

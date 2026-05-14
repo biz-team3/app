@@ -6,6 +6,7 @@ import { deletePost, getPostDetail, likePost, savePost, unlikePost, unsavePost }
 import { useLanguage } from "../../hooks/useLanguage.js";
 import { ConfirmDialog } from "../../components/modals/ConfirmDialog.jsx";
 import { PostEditModal } from "../../components/modals/PostEditModal.jsx";
+import { splitCaptionTokens } from "../../utils/content.js";
 import { formatRelativeTime } from "../../utils/format.js";
 
 const COMMENTS_PAGE_SIZE = 20;
@@ -144,6 +145,7 @@ export function PostDetailModal({ postId, onClose, onChanged }) {
   const mediaCount = post.media.length;
   const postCreatedAtText = formatRelativeTime(post.createdAt);
   const canManagePost = post.isOwner;
+  const captionTokens = splitCaptionTokens(post.caption || "");
 
   const toggleLike = async () => {
     setActionError("");
@@ -313,13 +315,20 @@ export function PostDetailModal({ postId, onClose, onChanged }) {
           </header>
 
           <div ref={commentsScrollRef} className="flex-1 overflow-y-auto px-4 py-4">
-            <div className="mb-5 text-sm leading-relaxed break-words [overflow-wrap:anywhere] [white-space:break-spaces]">
+            <div className="mb-5 text-sm leading-relaxed whitespace-pre-wrap [word-break:keep-all]">
               <p
                 ref={captionRef}
                 className={captionExpanded ? "" : "overflow-hidden"}
                 style={captionExpanded ? undefined : { maxHeight: `${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em` }}
               >
-                {post.caption}
+                {captionTokens.map((token, index) => (
+                  <span
+                    key={`${token.type}-${index}`}
+                    className={token.type === "hashtag" ? "whitespace-nowrap" : "[overflow-wrap:break-word]"}
+                  >
+                    {token.text}
+                  </span>
+                ))}
               </p>
               {captionNeedsPreview && (
                 <button

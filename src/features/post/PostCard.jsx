@@ -5,6 +5,7 @@ import { deletePost, likePost, savePost, unlikePost, unsavePost } from "../../ap
 import { useLanguage } from "../../hooks/useLanguage.js";
 import { ConfirmDialog } from "../../components/modals/ConfirmDialog.jsx";
 import { PostEditModal } from "../../components/modals/PostEditModal.jsx";
+import { splitCaptionTokens } from "../../utils/content.js";
 import { formatRelativeTime } from "../../utils/format.js";
 
 const CAPTION_PREVIEW_LINES = 3;
@@ -25,6 +26,7 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
 
   const mediaCount = post.media.length;
   const captionText = translated ? post.translatedCaption : post.caption;
+  const captionTokens = splitCaptionTokens(captionText || "");
   const canManagePost = post.isOwner;
   const postTimeText = formatRelativeTime(post.createdAt);
 
@@ -174,14 +176,21 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
           </button>
         </div>
         {actionError ? <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-500 dark:bg-red-950/30">{actionError}</p> : null}
-        <div className="text-sm leading-relaxed break-words [overflow-wrap:anywhere] [white-space:break-spaces]">
+        <div className="text-sm leading-relaxed whitespace-pre-wrap [word-break:keep-all]">
           <p
             ref={captionRef}
             className={expanded ? "" : "overflow-hidden"}
             style={expanded ? undefined : { maxHeight: `${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em` }}
           >
             <span className="mr-2 font-bold">{post.author.username}</span>
-            {captionText}
+            {captionTokens.map((token, index) => (
+              <span
+                key={`${token.type}-${index}`}
+                className={token.type === "hashtag" ? "whitespace-nowrap" : "[overflow-wrap:break-word]"}
+              >
+                {token.text}
+              </span>
+            ))}
           </p>
           {captionNeedsPreview && (
             <button onClick={() => setExpanded((value) => !value)} className="mt-1 font-semibold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
