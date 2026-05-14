@@ -1,4 +1,4 @@
-import { apiRequest } from "./mockClient.js";
+import { apiRequest } from "./apiClient.js";
 
 const STORY_ACTIVE_MS = 24 * 60 * 60 * 1000;
 

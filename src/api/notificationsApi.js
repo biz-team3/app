@@ -1,4 +1,4 @@
-import { apiRequest } from "./mockClient.js";
+import { apiRequest } from "./apiClient.js";
 
 export async function getNotifications() {
   return apiRequest("/api/notifications");

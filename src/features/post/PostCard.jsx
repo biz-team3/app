@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { Bookmark, ChevronLeft, ChevronRight, Heart, MessageCircle, MoreHorizontal } from "lucide-react";
+import { Bookmark, ChevronLeft, ChevronRight, Heart, Loader2, MessageCircle, MoreHorizontal } from "lucide-react";
 import { Link } from "react-router-dom";
-import { deletePost, likePost, savePost, unlikePost, unsavePost } from "../../api/postsApi.js";
+import { getPreferences } from "../../api/preferencesApi.js";
+import { deletePost, likePost, savePost, translatePostCaption, unlikePost, unsavePost } from "../../api/postsApi.js";
+import { HiddenTextBlock } from "../../components/content/HiddenTextBlock.jsx";
 import { useLanguage } from "../../hooks/useLanguage.js";
 import { ConfirmDialog } from "../../components/modals/ConfirmDialog.jsx";
 import { PostEditModal } from "../../components/modals/PostEditModal.jsx";
 import { formatRelativeTime } from "../../utils/format.js";
+import { containsHiddenWord } from "../../utils/hiddenWords.js";
 import { PostCaptionText } from "./PostCaptionText.jsx";
 
 const CAPTION_PREVIEW_LINES = 3;
@@ -17,15 +20,20 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
   const [expanded, setExpanded] = useState(false);
   const [captionNeedsPreview, setCaptionNeedsPreview] = useState(false);
   const [translated, setTranslated] = useState(false);
+  const [translatedCaption, setTranslatedCaption] = useState(post.translatedCaption || "");
+  const [translatingCaption, setTranslatingCaption] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [deletingPost, setDeletingPost] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [hiddenWordsEnabled, setHiddenWordsEnabled] = useState(false);
+  const [hiddenWords, setHiddenWords] = useState([]);
   const captionRef = useRef(null);
   const menuRef = useRef(null);
 
   const mediaCount = post.media.length;
-  const captionText = translated ? post.translatedCaption : post.caption;
+  const captionText = translated ? translatedCaption : post.caption;
+  const captionHidden = hiddenWordsEnabled && containsHiddenWord(captionText, hiddenWords);
   const canManagePost = post.isOwner;
   const postTimeText = formatRelativeTime(post.createdAt);
 
@@ -37,7 +45,10 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
     setActionError("");
     setExpanded(false);
     setCaptionNeedsPreview(false);
-  }, [post.postId, post.caption, post.media]);
+    setTranslated(false);
+    setTranslatedCaption(post.translatedCaption || "");
+    setTranslatingCaption(false);
+  }, [post.postId, post.caption, post.media, post.translatedCaption]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -47,6 +58,19 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const loadPreferences = () => {
+      getPreferences().then((preferences) => {
+        setHiddenWordsEnabled(Boolean(preferences.hiddenWordsEnabled));
+        setHiddenWords(preferences.hiddenWords || []);
+      });
+    };
+
+    loadPreferences();
+    window.addEventListener("preferences:changed", loadPreferences);
+    return () => window.removeEventListener("preferences:changed", loadPreferences);
   }, []);
 
   useEffect(() => {
@@ -98,6 +122,28 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
     } catch {
       setDeletingPost(false);
       setActionError(t("postActionFailed"));
+    }
+  };
+
+  const toggleCaptionTranslation = async () => {
+    setActionError("");
+
+    if (translatedCaption) {
+      setTranslated((value) => !value);
+      return;
+    }
+
+    if (translatingCaption) return;
+    setTranslatingCaption(true);
+
+    try {
+      const result = await translatePostCaption(post.postId);
+      setTranslatedCaption(result.translatedContent);
+      setTranslated(true);
+    } catch (error) {
+      setActionError(getTranslationErrorMessage(error, t));
+    } finally {
+      setTranslatingCaption(false);
     }
   };
 
@@ -176,22 +222,36 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
         </div>
         {actionError ? <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-500 dark:bg-red-950/30">{actionError}</p> : null}
         <div className="text-sm">
-          <PostCaptionText
-            ref={captionRef}
-            caption={captionText || ""}
-            authorName={post.author.username}
-            collapsed={!expanded}
-            maxHeight={`${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em`}
-            className="leading-relaxed"
-          />
-          {captionNeedsPreview && (
+          {captionHidden ? (
+            <HiddenTextBlock>
+              <PostCaptionText
+                ref={captionRef}
+                caption={captionText || ""}
+                authorName={post.author.username}
+                collapsed={!expanded}
+                maxHeight={`${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em`}
+                className="leading-relaxed"
+              />
+            </HiddenTextBlock>
+          ) : (
+            <PostCaptionText
+              ref={captionRef}
+              caption={captionText || ""}
+              authorName={post.author.username}
+              collapsed={!expanded}
+              maxHeight={`${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em`}
+              className="leading-relaxed"
+            />
+          )}
+          {!captionHidden && captionNeedsPreview && (
             <button onClick={() => setExpanded((value) => !value)} className="mt-1 font-semibold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
               {expanded ? t("close") : t("more")}
             </button>
           )}
         </div>
-        <button onClick={() => setTranslated((value) => !value)} className="w-fit text-[10px] font-bold uppercase text-gray-500">
-          {translated ? t("seeOriginal") : t("seeTranslation")}
+        <button onClick={toggleCaptionTranslation} disabled={translatingCaption} className="flex w-fit items-center gap-1 text-[10px] font-bold uppercase text-gray-500 disabled:text-gray-300">
+          {translatingCaption && <Loader2 className="h-3 w-3 animate-spin" />}
+          {translatingCaption ? t("translating") : translated ? t("seeOriginal") : t("seeTranslation")}
         </button>
       </div>
       {deletingPost && (
@@ -208,4 +268,12 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
       <PostEditModal post={post} isOpen={editOpen} onClose={() => setEditOpen(false)} onSaved={onChanged} />
     </article>
   );
+}
+
+function getTranslationErrorMessage(error, t) {
+  if (error?.message?.includes("DeepL API 키")) {
+    return t("translationSetupRequired");
+  }
+
+  return error?.message || t("translationFailed");
 }

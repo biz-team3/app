@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { Bookmark, ChevronLeft, ChevronRight, Heart, MessageCircle, MoreHorizontal, X } from "lucide-react";
+import { Bookmark, ChevronLeft, ChevronRight, Heart, Loader2, MessageCircle, MoreHorizontal, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createComment, deleteComment, getPostComments, updateComment } from "../../api/commentsApi.js";
-import { deletePost, getPostDetail, likePost, savePost, unlikePost, unsavePost } from "../../api/postsApi.js";
+import { getPreferences } from "../../api/preferencesApi.js";
+import { deletePost, getPostDetail, likePost, savePost, translatePostCaption, unlikePost, unsavePost } from "../../api/postsApi.js";
+import { HiddenTextBlock } from "../../components/content/HiddenTextBlock.jsx";
 import { useLanguage } from "../../hooks/useLanguage.js";
 import { ConfirmDialog } from "../../components/modals/ConfirmDialog.jsx";
 import { PostEditModal } from "../../components/modals/PostEditModal.jsx";
 import { formatRelativeTime } from "../../utils/format.js";
+import { containsHiddenWord, evaluateContentSafety } from "../../utils/hiddenWords.js";
 import { PostCaptionText } from "./PostCaptionText.jsx";
 
 const COMMENTS_PAGE_SIZE = 20;
@@ -26,12 +29,18 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
   const [currentMedia, setCurrentMedia] = useState(0);
   const [captionExpanded, setCaptionExpanded] = useState(false);
   const [captionNeedsPreview, setCaptionNeedsPreview] = useState(false);
+  const [captionTranslated, setCaptionTranslated] = useState(false);
+  const [translatedCaption, setTranslatedCaption] = useState("");
+  const [captionTranslating, setCaptionTranslating] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [editingCommentText, setEditingCommentText] = useState("");
   const [deletingComment, setDeletingComment] = useState(null);
   const [deletingPost, setDeletingPost] = useState(false);
+  const [hiddenWordsEnabled, setHiddenWordsEnabled] = useState(false);
+  const [hiddenWords, setHiddenWords] = useState([]);
+  const [contentWarningAction, setContentWarningAction] = useState(null);
   const commentsScrollRef = useRef(null);
   const commentsSentinelRef = useRef(null);
   const captionRef = useRef(null);
@@ -42,6 +51,7 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
     try {
       const [postResult, commentResult] = await Promise.all([getPostDetail(postId), getPostComments(postId, { page: 0, size: COMMENTS_PAGE_SIZE })]);
       setPost(postResult);
+      setTranslatedCaption(postResult.translatedCaption || "");
       setComments(commentResult.content);
       setCommentPage(commentResult.pageRequest.page);
       setCommentsHasNext(commentResult.hasNext);
@@ -77,6 +87,9 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
     setCurrentMedia(0);
     setCaptionExpanded(false);
     setCaptionNeedsPreview(false);
+    setCaptionTranslated(false);
+    setTranslatedCaption("");
+    setCaptionTranslating(false);
     setEditOpen(false);
     setMenuOpen(false);
     setCommentText("");
@@ -114,6 +127,19 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
   }, []);
 
   useEffect(() => {
+    const loadPreferences = () => {
+      getPreferences().then((preferences) => {
+        setHiddenWordsEnabled(Boolean(preferences.hiddenWordsEnabled));
+        setHiddenWords(preferences.hiddenWords || []);
+      });
+    };
+
+    loadPreferences();
+    window.addEventListener("preferences:changed", loadPreferences);
+    return () => window.removeEventListener("preferences:changed", loadPreferences);
+  }, []);
+
+  useEffect(() => {
     if (!post || captionExpanded) return undefined;
 
     const measureCaption = () => {
@@ -129,7 +155,7 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener("resize", measureCaption);
     };
-  }, [captionExpanded, post]);
+  }, [captionExpanded, post, captionTranslated, translatedCaption]);
 
   if (!post) {
     return (
@@ -146,6 +172,8 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
   const postCreatedAtText = formatRelativeTime(post.createdAt);
   const canManagePost = post.isOwner;
   const canCreateComment = commentText.trim().length > 0;
+  const captionText = captionTranslated ? translatedCaption : post.caption;
+  const captionHidden = hiddenWordsEnabled && containsHiddenWord(captionText, hiddenWords);
 
   const toggleLike = async () => {
     setActionError("");
@@ -171,9 +199,21 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
     }
   };
 
-  const handleCreateComment = async (event) => {
-    event.preventDefault();
+  const submitCreateComment = async ({ skipSafety = false } = {}) => {
     if (!commentText.trim()) return;
+    const safety = evaluateContentSafety(commentText);
+
+    if (!skipSafety && safety.blocked) {
+      setActionError(t("contentBlockedDesc"));
+      return;
+    }
+
+    if (!skipSafety && safety.warning) {
+      setContentWarningAction("createComment");
+      return;
+    }
+
+    setContentWarningAction(null);
     setActionError("");
     try {
       await createComment(post.postId, { text: commentText });
@@ -185,13 +225,32 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
     }
   };
 
+  const handleCreateComment = (event) => {
+    event.preventDefault();
+    submitCreateComment();
+  };
+
   const startEditComment = (comment) => {
     setEditingCommentId(comment.commentId);
     setEditingCommentText(comment.text);
+    setContentWarningAction(null);
   };
 
-  const handleUpdateComment = async () => {
+  const handleUpdateComment = async ({ skipSafety = false } = {}) => {
     if (!editingCommentText.trim()) return;
+    const safety = evaluateContentSafety(editingCommentText);
+
+    if (!skipSafety && safety.blocked) {
+      setActionError(t("contentBlockedDesc"));
+      return;
+    }
+
+    if (!skipSafety && safety.warning) {
+      setContentWarningAction("updateComment");
+      return;
+    }
+
+    setContentWarningAction(null);
     setActionError("");
     try {
       await updateComment(editingCommentId, { text: editingCommentText.trim() });
@@ -233,6 +292,29 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
   const handlePostSaved = async () => {
     await load();
     onChanged?.();
+  };
+
+  const toggleCaptionTranslation = async () => {
+    setActionError("");
+
+    if (translatedCaption) {
+      setCaptionTranslated((value) => !value);
+      return;
+    }
+
+    if (captionTranslating) return;
+    setCaptionTranslating(true);
+
+    try {
+      const result = await translatePostCaption(post.postId);
+      setTranslatedCaption(result.translatedContent);
+      setCaptionTranslated(true);
+      setPost((currentPost) => currentPost ? { ...currentPost, translatedCaption: result.translatedContent } : currentPost);
+    } catch (error) {
+      setActionError(getTranslationErrorMessage(error, t));
+    } finally {
+      setCaptionTranslating(false);
+    }
   };
 
   return (
@@ -321,14 +403,26 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
 
           <div ref={commentsScrollRef} className="flex-1 overflow-y-auto px-4 py-4">
             <div className="mb-5 text-sm">
-              <PostCaptionText
-                ref={captionRef}
-                caption={post.caption || ""}
-                collapsed={!captionExpanded}
-                maxHeight={`${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em`}
-                className="leading-relaxed"
-              />
-              {captionNeedsPreview && (
+              {captionHidden ? (
+                <HiddenTextBlock>
+                  <PostCaptionText
+                    ref={captionRef}
+                    caption={captionText || ""}
+                    collapsed={!captionExpanded}
+                    maxHeight={`${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em`}
+                    className="leading-relaxed"
+                  />
+                </HiddenTextBlock>
+              ) : (
+                <PostCaptionText
+                  ref={captionRef}
+                  caption={captionText || ""}
+                  collapsed={!captionExpanded}
+                  maxHeight={`${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em`}
+                  className="leading-relaxed"
+                />
+              )}
+              {!captionHidden && captionNeedsPreview && (
                 <button
                   onClick={() => setCaptionExpanded((value) => !value)}
                   className="mt-1 font-semibold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
@@ -336,6 +430,10 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
                   {captionExpanded ? t("close") : t("more")}
                 </button>
               )}
+              <button onClick={toggleCaptionTranslation} disabled={captionTranslating} className="mt-2 flex w-fit items-center gap-1 text-[10px] font-bold uppercase text-gray-500 disabled:text-gray-300">
+                {captionTranslating && <Loader2 className="h-3 w-3 animate-spin" />}
+                {captionTranslating ? t("translating") : captionTranslated ? t("seeOriginal") : t("seeTranslation")}
+              </button>
             </div>
 
             <div className="flex flex-col gap-4">
@@ -374,6 +472,15 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
                           </button>
                         </div>
                       </div>
+                    ) : hiddenWordsEnabled && containsHiddenWord(comment.text, hiddenWords) ? (
+                      <HiddenTextBlock>
+                        <p className="leading-relaxed break-words [overflow-wrap:anywhere] [white-space:break-spaces]">
+                          <Link to={`/profile/${comment.author.username}`} onClick={onClose} className="mr-2 font-bold hover:underline">
+                            {comment.author.username}
+                          </Link>
+                          {comment.text}
+                        </p>
+                      </HiddenTextBlock>
                     ) : (
                       <p className="leading-relaxed break-words [overflow-wrap:anywhere] [white-space:break-spaces]">
                         <Link to={`/profile/${comment.author.username}`} onClick={onClose} className="mr-2 font-bold hover:underline">
@@ -450,9 +557,30 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
           onCancel={() => setDeletingPost(false)}
         />
       )}
+      {contentWarningAction && (
+        <ConfirmDialog
+          title={t("contentWarningTitle")}
+          description={t("contentWarningDesc")}
+          confirmLabel={t("continuePosting")}
+          cancelLabel={t("cancel")}
+          onConfirm={() => {
+            if (contentWarningAction === "createComment") submitCreateComment({ skipSafety: true });
+            if (contentWarningAction === "updateComment") handleUpdateComment({ skipSafety: true });
+          }}
+          onCancel={() => setContentWarningAction(null)}
+        />
+      )}
       <div onMouseDown={(event) => event.stopPropagation()}>
         <PostEditModal post={post} isOpen={editOpen} onClose={() => setEditOpen(false)} onSaved={handlePostSaved} />
       </div>
     </div>
   );
+}
+
+function getTranslationErrorMessage(error, t) {
+  if (error?.message?.includes("DeepL API 키")) {
+    return t("translationSetupRequired");
+  }
+
+  return error?.message || t("translationFailed");
 }

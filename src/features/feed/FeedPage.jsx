@@ -10,15 +10,49 @@ import { PostEditModal } from "../../components/modals/PostEditModal.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useLanguage } from "../../hooks/useLanguage.js";
 
-function getStoriesPerPage() {
-  if (typeof window === "undefined") return 4;
-  if (window.matchMedia("(min-width: 1024px)").matches) return 7;
-  if (window.matchMedia("(min-width: 480px)").matches) return 5;
-  return 4;
-}
+const STORY_MIN_TILE_WIDTH = 74;
+const STORY_TILE_GAP = 5;
+const STORY_NAV_NUDGE_SPACE = 0;
+const STORY_NAV_BUTTON_SIZE = 28;
+const STORY_RING_EXTRA_SIZE = 9;
+const FEED_MAX_WIDTH = 600;
+const FEED_HORIZONTAL_PADDING = 16;
+const STORY_RAIL_HORIZONTAL_PADDING = 24;
+const STORY_MIN_VISIBLE_COUNT = 5;
+const STORY_MAX_VISIBLE_COUNT = 7;
+const STORY_MIN_AVATAR_SIZE = 32;
+const STORY_MAX_AVATAR_SIZE = 78;
+const DEFAULT_STORY_LAYOUT = {
+  visibleCount: STORY_MIN_VISIBLE_COUNT,
+  tileWidth: 52,
+  avatarSize: 42,
+  navNudgeSpace: 0,
+};
 
 function hasStories(group) {
   return (group?.stories || []).length > 0;
+}
+
+function getStoryLayoutForViewport(totalStories = 0) {
+  if (typeof window === "undefined") return DEFAULT_STORY_LAYOUT;
+
+  const feedWidth = Math.min(FEED_MAX_WIDTH, window.innerWidth - FEED_HORIZONTAL_PADDING);
+  const railWidth = feedWidth - STORY_RAIL_HORIZONTAL_PADDING;
+  if (!Number.isFinite(railWidth) || railWidth <= 0) return DEFAULT_STORY_LAYOUT;
+
+  const countForWidth = (width) =>
+    Math.min(
+      STORY_MAX_VISIBLE_COUNT,
+      Math.max(STORY_MIN_VISIBLE_COUNT, Math.floor((width + STORY_TILE_GAP) / (STORY_MIN_TILE_WIDTH + STORY_TILE_GAP))),
+    );
+  const countWithoutNudge = countForWidth(railWidth);
+  const navNudgeSpace = totalStories > countWithoutNudge ? STORY_NAV_NUDGE_SPACE : 0;
+  const availableWidth = railWidth - navNudgeSpace * 2;
+  const visibleCount = countForWidth(availableWidth);
+  const tileWidth = (availableWidth - STORY_TILE_GAP * (visibleCount - 1)) / visibleCount;
+  const avatarSize = Math.max(STORY_MIN_AVATAR_SIZE, Math.min(STORY_MAX_AVATAR_SIZE, tileWidth - STORY_RING_EXTRA_SIZE));
+
+  return { visibleCount, tileWidth, avatarSize, navNudgeSpace };
 }
 
 function hasUnreadStories(group) {
@@ -65,7 +99,7 @@ export function FeedPage() {
   const [posts, setPosts] = useState([]);
   const [storyGroups, setStoryGroups] = useState([]);
   const [storyPage, setStoryPage] = useState(0);
-  const [storiesPerPage, setStoriesPerPage] = useState(getStoriesPerPage);
+  const [storyLayout, setStoryLayout] = useState(DEFAULT_STORY_LAYOUT);
   const [viewerUserId, setViewerUserId] = useState(null);
   const [selectedPostId, setSelectedPostId] = useState(null);
   const [editingPost, setEditingPost] = useState(null);
@@ -148,25 +182,38 @@ export function FeedPage() {
   }, [loadNextPage]);
 
   useEffect(() => {
-    const handleResize = () => {
-      setStoriesPerPage((current) => {
-        const next = getStoriesPerPage();
-        return current === next ? current : next;
-      });
-      setStoryPage(0);
+    const updateStoryLayout = () => {
+      const nextLayout = getStoryLayoutForViewport(storyGroups.length);
+      setStoryLayout((current) =>
+        current.visibleCount === nextLayout.visibleCount &&
+        current.tileWidth === nextLayout.tileWidth &&
+        current.avatarSize === nextLayout.avatarSize &&
+        current.navNudgeSpace === nextLayout.navNudgeSpace
+          ? current
+          : nextLayout,
+      );
     };
 
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+    updateStoryLayout();
+    window.addEventListener("resize", updateStoryLayout);
+    return () => window.removeEventListener("resize", updateStoryLayout);
+  }, [storyGroups.length]);
 
-  const storyStart = storyPage * storiesPerPage;
-  const visibleStoryGroups = storyGroups.slice(storyStart, storyStart + storiesPerPage);
+  useEffect(() => {
+    const maxPage = Math.max(0, Math.ceil(storyGroups.length / storyLayout.visibleCount) - 1);
+    setStoryPage((current) => Math.min(current, maxPage));
+  }, [storyGroups.length, storyLayout.visibleCount]);
+
+  const storyStart = storyPage * storyLayout.visibleCount;
+  const visibleStoryGroups = storyGroups.slice(storyStart, storyStart + storyLayout.visibleCount);
   const viewableStoryGroups = storyGroups.filter((group) => group.stories.length > 0);
   const viewerInitialIndex = viewableStoryGroups.findIndex((group) => group.userId === viewerUserId);
-  const storyPageCount = Math.ceil(storyGroups.length / storiesPerPage);
+  const storyPageCount = Math.ceil(storyGroups.length / storyLayout.visibleCount);
   const canPreviousStories = storyPage > 0;
   const canNextStories = storyPage < storyPageCount - 1;
+  const storyRailLeftSpace = canPreviousStories ? storyLayout.navNudgeSpace : 0;
+  const storyRailRightSpace = canNextStories ? storyLayout.navNudgeSpace : 0;
+  const storyNavTop = Math.max(0, (storyLayout.avatarSize + STORY_RING_EXTRA_SIZE - STORY_NAV_BUTTON_SIZE) / 2);
   const openStoryGroup = (group) => {
     if (group.isOwner && !hasStories(group)) {
       onCreateStory?.();
@@ -180,13 +227,30 @@ export function FeedPage() {
       <div className="w-full max-w-[600px]">
         {storyGroups.length > 0 && (
           <section className="border-b border-gray-100 py-4 dark:border-gray-900">
-            <div className="relative px-2">
-              <div className="grid gap-x-3 gap-y-4" style={{ gridTemplateColumns: `repeat(${storiesPerPage}, minmax(0, 1fr))` }}>
+            <div className="relative px-3">
+              <div
+                className="grid overflow-hidden"
+                style={{
+                  gap: `${STORY_TILE_GAP}px`,
+                  gridTemplateColumns: `repeat(${storyLayout.visibleCount}, minmax(0, 1fr))`,
+                  paddingLeft: `${storyRailLeftSpace}px`,
+                  paddingRight: `${storyRailRightSpace}px`,
+                }}
+              >
                 {visibleStoryGroups.map((group) => (
-                  <button key={group.userId} onClick={() => openStoryGroup(group)} className="flex min-w-0 flex-col items-center gap-1.5">
-                    <div className={`relative rounded-full p-[2.5px] ${getStoryRingClass(group)}`}>
+                  <button
+                    key={group.userId}
+                    onClick={() => openStoryGroup(group)}
+                    className="flex min-w-0 flex-col items-center gap-1.5"
+                  >
+                    <div className={`relative shrink-0 rounded-full p-[2.5px] ${getStoryRingClass(group)}`}>
                       <div className="rounded-full bg-white p-[2px] dark:bg-black">
-                        <img src={group.profileImageUrl} alt="" className="h-14 w-14 rounded-full object-cover sm:h-[58px] sm:w-[58px]" />
+                        <img
+                          src={group.profileImageUrl}
+                          alt=""
+                          className="shrink-0 rounded-full object-cover"
+                          style={{ width: `${storyLayout.avatarSize}px`, height: `${storyLayout.avatarSize}px` }}
+                        />
                       </div>
                       {group.isOwner && !hasStories(group) && (
                         <span className="absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-white text-black shadow-sm ring-1 ring-gray-300 dark:border-black dark:bg-zinc-900 dark:text-white dark:ring-zinc-700">
@@ -194,7 +258,9 @@ export function FeedPage() {
                         </span>
                       )}
                     </div>
-                    <span className="w-16 truncate text-center text-[11px] text-gray-500">{group.isOwner ? t("yourStory") : group.username}</span>
+                    <span className="max-w-full truncate text-center text-[11px] text-gray-500" style={{ width: `${storyLayout.tileWidth}px` }}>
+                      {group.isOwner ? t("yourStory") : group.username}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -203,9 +269,10 @@ export function FeedPage() {
                   <button
                     onClick={() => setStoryPage((value) => Math.max(0, value - 1))}
                     disabled={!canPreviousStories}
-                    className={`absolute left-0 top-[30px] flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-md dark:bg-gray-900 ${
+                    className={`absolute left-0 flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-md dark:bg-gray-900 ${
                       canPreviousStories ? "opacity-100" : "pointer-events-none opacity-0"
                     }`}
+                    style={{ top: `${storyNavTop}px` }}
                     aria-label="Previous stories"
                   >
                     <ChevronLeft className="h-4 w-4" />
@@ -213,9 +280,10 @@ export function FeedPage() {
                   <button
                     onClick={() => setStoryPage((value) => Math.min(storyPageCount - 1, value + 1))}
                     disabled={!canNextStories}
-                    className={`absolute right-0 top-[30px] flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-md dark:bg-gray-900 ${
+                    className={`absolute right-0 flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-md dark:bg-gray-900 ${
                       canNextStories ? "opacity-100" : "pointer-events-none opacity-0"
                     }`}
+                    style={{ top: `${storyNavTop}px` }}
                     aria-label="Next stories"
                   >
                     <ChevronRight className="h-4 w-4" />

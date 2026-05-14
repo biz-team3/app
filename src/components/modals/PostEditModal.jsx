@@ -4,7 +4,9 @@ import { uploadPostMedia } from "../../api/mediaApi.js";
 import { replacePostMedia, updatePostCaption } from "../../api/postsApi.js";
 import { useLanguage } from "../../hooks/useLanguage.js";
 import { extractHashtags } from "../../utils/hashtags.js";
+import { evaluateContentSafety } from "../../utils/hiddenWords.js";
 import { IMAGE_FILE_ACCEPT, validateImageFiles } from "../../utils/mediaValidation.js";
+import { ConfirmDialog } from "./ConfirmDialog.jsx";
 
 function getMediaUrl(media) {
   return media.previewUrl || media.url;
@@ -24,6 +26,7 @@ export function PostEditModal({ post, isOpen, onClose, onSaved }) {
   const [mediaDirty, setMediaDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [warningOpen, setWarningOpen] = useState(false);
 
   useEffect(() => {
     if (!isOpen || !post) return;
@@ -33,6 +36,7 @@ export function PostEditModal({ post, isOpen, onClose, onSaved }) {
     setMediaDirty(false);
     setSaving(false);
     setError("");
+    setWarningOpen(false);
   }, [isOpen, post]);
 
   if (!isOpen || !post) return null;
@@ -96,14 +100,26 @@ export function PostEditModal({ post, isOpen, onClose, onSaved }) {
     setMediaDirty(true);
   };
 
-  const handleSave = async () => {
+  const handleSave = async ({ skipSafety = false } = {}) => {
     if (!canSave || saving) return;
+    const safety = evaluateContentSafety(caption);
+
+    if (!skipSafety && safety.blocked) {
+      setError(t("contentBlockedDesc"));
+      return;
+    }
+
+    if (!skipSafety && safety.warning) {
+      setWarningOpen(true);
+      return;
+    }
+
+    setWarningOpen(false);
     setSaving(true);
     setError("");
     try {
       await updatePostCaption(post.postId, {
         caption: caption.trim(),
-        translatedCaption: caption.trim(),
         hashtags: extractHashtags(caption),
       });
 
@@ -230,6 +246,16 @@ export function PostEditModal({ post, isOpen, onClose, onSaved }) {
           </aside>
         </div>
       </section>
+      {warningOpen && (
+        <ConfirmDialog
+          title={t("contentWarningTitle")}
+          description={t("contentWarningDesc")}
+          confirmLabel={t("continuePosting")}
+          cancelLabel={t("cancel")}
+          onConfirm={() => handleSave({ skipSafety: true })}
+          onCancel={() => setWarningOpen(false)}
+        />
+      )}
     </div>
   );
 }
