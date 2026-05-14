@@ -1,4 +1,4 @@
-import { apiRequest } from "./mockClient.js";
+import { apiRequest } from "./apiClient.js";
 
 const uploadedMediaUrls = [
   "/oosu.hada.jpg",

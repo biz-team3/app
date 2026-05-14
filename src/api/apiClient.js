@@ -32,19 +32,6 @@ export async function apiRequest(path, options = {}) {
   return data;
 }
 
-export function mockResponse(data, options = {}) {
-  const { delay = 120 } = options;
-  return new Promise((resolve) => {
-    globalThis.setTimeout(() => resolve(structuredClone(data)), delay);
-  });
-}
-
-export function mockError(message, status = 400) {
-  const error = new Error(message);
-  error.status = status;
-  return Promise.reject(error);
-}
-
 export function readStorage(key, fallback = null) {
   const value = localStorage.getItem(key);
   if (!value) return fallback;
@@ -70,12 +57,4 @@ export function setAccessToken(token) {
 
 export function clearAccessToken() {
   localStorage.removeItem(AUTH_TOKEN_KEY);
-}
-
-export function requireToken() {
-  const token = getAccessToken();
-  if (!token) {
-    throw new Error("Missing mock JWT token");
-  }
-  return token;
 }

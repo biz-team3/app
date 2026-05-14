@@ -1,35 +1,22 @@
-import { canViewerSeeUser, db, findUserById, getCurrentUser } from "../mocks/db.js";
-import { apiRequest, mockError, mockResponse } from "./mockClient.js";
-import { createPageResponseFromItems } from "./pageResponse.js";
+import { apiRequest } from "./apiClient.js";
 
-function findPost(postId) {
-  return db.posts.find((post) => post.postId === Number(postId));
+function toBoolean(value) {
+  return value === true || value === 1 || value === "1" || value === "true";
 }
 
-function canViewerSeePost(post) {
-  return Boolean(post && canViewerSeeUser(findUserById(post.authorId)));
-}
-
-function ensurePostVisible(postId) {
-  const post = findPost(postId);
-  if (!post) throw Object.assign(new Error("Post not found"), { status: 404 });
-  if (!canViewerSeePost(post)) throw Object.assign(new Error("Post is not visible to current user"), { status: 403 });
-  return post;
-}
-
-function toComment(comment) {
-  const author = comment.author || findUserById(comment.authorId);
-  const viewer = getCurrentUser();
+function toComment(comment = {}) {
+  const author = comment.author || {};
   return {
     commentId: comment.commentId,
     postId: comment.postId,
     author: {
       userId: author.userId,
       username: author.username,
+      profileImageUrl: author.profileImageUrl || "",
     },
     text: comment.text,
     createdAt: comment.createdAt,
-    isOwner: comment.owner,
+    isOwner: toBoolean(comment.isOwner ?? comment.owner),
   };
 }
 

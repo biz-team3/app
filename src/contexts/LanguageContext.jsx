@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { getPreferences, savePreferences } from "../api/preferencesApi.js";
-import { translations } from "../mocks/translations.mock.js";
+import { translations } from "../i18n/translations.js";
 
 const LanguageContext = createContext(null);
 

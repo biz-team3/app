@@ -1,4 +1,4 @@
-import { apiRequest } from "./mockClient.js";
+import { apiRequest } from "./apiClient.js";
 
 const ACCOUNT_VISIBILITIES = ["PUBLIC", "PRIVATE"];
 

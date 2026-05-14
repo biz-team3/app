@@ -1,4 +1,4 @@
-import {apiRequest, AUTH_USER_KEY, clearAccessToken, setAccessToken, writeStorage} from "./mockClient.js";
+import {apiRequest, AUTH_USER_KEY, clearAccessToken, setAccessToken, writeStorage} from "./apiClient.js";
 
 const MOCK_PASSWORD = "password";
 
