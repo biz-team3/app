@@ -107,6 +107,11 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
     }
   };
 
+  const handlePostDetailChanged = async () => {
+    await onChanged?.();
+    await load();
+  };
+
   if (!isOpen) return null;
 
   const todayNotifications = notifications.filter((item) => getNotificationPeriod(item.createdAt) === "today");
@@ -124,19 +129,21 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
                 <X className="h-6 w-6" />
               </button>
             </div>
-            <button onClick={() => setMode("requests")} className="flex w-full items-center justify-between border-b border-gray-100 px-6 py-4 text-left hover:bg-gray-50 dark:border-gray-900 dark:hover:bg-gray-900">
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <img src={requests[0]?.requesterProfileImg || "https://randomuser.me/api/portraits/women/27.jpg"} className="h-11 w-11 rounded-full object-cover" alt="" />
-                  {requests.length > 0 && <span className="absolute -right-1 -top-1 rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{requests.length}</span>}
+            {requests.length > 0 && (
+              <button onClick={() => setMode("requests")} className="flex w-full items-center justify-between border-b border-gray-100 px-6 py-4 text-left hover:bg-gray-50 dark:border-gray-900 dark:hover:bg-gray-900">
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <img src={requests[0].requesterProfileImg} className="h-11 w-11 rounded-full object-cover" alt="" />
+                    <span className="absolute -right-1 -top-1 rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{requests.length}</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold">{t("followRequest")}</p>
+                    <p className="text-sm text-gray-500">{t("followRequestDesc")}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-bold">{t("followRequest")}</p>
-                  <p className="text-sm text-gray-500">{t("followRequestDesc")}</p>
-                </div>
-              </div>
-              <ChevronRight className="h-5 w-5 text-gray-400" />
-            </button>
+                <ChevronRight className="h-5 w-5 text-gray-400" />
+              </button>
+            )}
           {loading && <p className="px-6 py-8 text-center text-sm font-semibold text-gray-400">{t("loadingNotifications")}</p>}
             {error && (
               <div className="px-6 py-8 text-center">
@@ -228,7 +235,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
           </>
         )}
       </aside>
-      {selectedPostId && <PostDetailModal postId={selectedPostId} onClose={() => setSelectedPostId(null)} onChanged={onChanged} />}
+      {selectedPostId && <PostDetailModal postId={selectedPostId} onClose={() => setSelectedPostId(null)} onChanged={handlePostDetailChanged} />}
     </>
   );
 }
