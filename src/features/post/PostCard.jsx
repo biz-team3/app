@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Bookmark, ChevronLeft, ChevronRight, Heart, MessageCircle, MoreHorizontal } from "lucide-react";
+import { Bookmark, ChevronLeft, ChevronRight, Heart, Loader2, MessageCircle, MoreHorizontal } from "lucide-react";
 import { Link } from "react-router-dom";
 import { deletePost, likePost, savePost, translatePostCaption, unlikePost, unsavePost } from "../../api/postsApi.js";
 import { useLanguage } from "../../hooks/useLanguage.js";
@@ -121,7 +121,6 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
       const result = await translatePostCaption(post.postId);
       setTranslatedCaption(result.translatedContent);
       setTranslated(true);
-      onChanged?.();
     } catch {
       setActionError(t("translationFailed"));
     } finally {
@@ -218,7 +217,8 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
             </button>
           )}
         </div>
-        <button onClick={toggleCaptionTranslation} disabled={translatingCaption} className="w-fit text-[10px] font-bold uppercase text-gray-500 disabled:text-gray-300">
+        <button onClick={toggleCaptionTranslation} disabled={translatingCaption} className="flex w-fit items-center gap-1 text-[10px] font-bold uppercase text-gray-500 disabled:text-gray-300">
+          {translatingCaption && <Loader2 className="h-3 w-3 animate-spin" />}
           {translatingCaption ? t("translating") : translated ? t("seeOriginal") : t("seeTranslation")}
         </button>
       </div>

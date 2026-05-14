@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Bookmark, ChevronLeft, ChevronRight, Heart, MessageCircle, MoreHorizontal, X } from "lucide-react";
+import { Bookmark, ChevronLeft, ChevronRight, Heart, Loader2, MessageCircle, MoreHorizontal, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createComment, deleteComment, getPostComments, updateComment } from "../../api/commentsApi.js";
 import { deletePost, getPostDetail, likePost, savePost, translatePostCaption, unlikePost, unsavePost } from "../../api/postsApi.js";
@@ -258,8 +258,7 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
       const result = await translatePostCaption(post.postId);
       setTranslatedCaption(result.translatedContent);
       setCaptionTranslated(true);
-      await load();
-      onChanged?.();
+      setPost((currentPost) => currentPost ? { ...currentPost, translatedCaption: result.translatedContent } : currentPost);
     } catch {
       setActionError(t("translationFailed"));
     } finally {
@@ -368,7 +367,8 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
                   {captionExpanded ? t("close") : t("more")}
                 </button>
               )}
-              <button onClick={toggleCaptionTranslation} disabled={captionTranslating} className="mt-2 block w-fit text-[10px] font-bold uppercase text-gray-500 disabled:text-gray-300">
+              <button onClick={toggleCaptionTranslation} disabled={captionTranslating} className="mt-2 flex w-fit items-center gap-1 text-[10px] font-bold uppercase text-gray-500 disabled:text-gray-300">
+                {captionTranslating && <Loader2 className="h-3 w-3 animate-spin" />}
                 {captionTranslating ? t("translating") : captionTranslated ? t("seeOriginal") : t("seeTranslation")}
               </button>
             </div>
