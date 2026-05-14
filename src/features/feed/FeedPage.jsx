@@ -10,7 +10,7 @@ import { PostEditModal } from "../../components/modals/PostEditModal.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useLanguage } from "../../hooks/useLanguage.js";
 
-const STORY_MIN_TILE_WIDTH = 62;
+const STORY_MIN_TILE_WIDTH = 74;
 const STORY_TILE_GAP = 12;
 const STORY_NAV_NUDGE_SPACE = 12;
 const FEED_MAX_WIDTH = 600;
@@ -19,7 +19,7 @@ const STORY_RAIL_HORIZONTAL_PADDING = 16;
 const STORY_MIN_VISIBLE_COUNT = 5;
 const STORY_MAX_VISIBLE_COUNT = 6;
 const STORY_MIN_AVATAR_SIZE = 28;
-const STORY_MAX_AVATAR_SIZE = 64;
+const STORY_MAX_AVATAR_SIZE = 78;
 const DEFAULT_STORY_LAYOUT = {
   visibleCount: STORY_MIN_VISIBLE_COUNT,
   tileWidth: 52,
