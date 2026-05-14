@@ -12,7 +12,7 @@ import { useLanguage } from "../../hooks/useLanguage.js";
 
 const STORY_MIN_TILE_WIDTH = 62;
 const STORY_TILE_GAP = 12;
-const STORY_NAV_SIDE_SPACE = 36;
+const STORY_NAV_NUDGE_SPACE = 12;
 const FEED_MAX_WIDTH = 600;
 const FEED_HORIZONTAL_PADDING = 16;
 const STORY_RAIL_HORIZONTAL_PADDING = 16;
@@ -23,7 +23,6 @@ const DEFAULT_STORY_LAYOUT = {
   visibleCount: STORY_MIN_VISIBLE_COUNT,
   tileWidth: 52,
   avatarSize: 42,
-  navSideSpace: STORY_NAV_SIDE_SPACE,
 };
 
 function hasStories(group) {
@@ -38,14 +37,12 @@ function getStoryLayoutForViewport(totalStories = 0) {
   if (!Number.isFinite(railWidth) || railWidth <= 0) return DEFAULT_STORY_LAYOUT;
 
   const countForWidth = (width) => Math.max(STORY_MIN_VISIBLE_COUNT, Math.floor((width + STORY_TILE_GAP) / (STORY_MIN_TILE_WIDTH + STORY_TILE_GAP)));
-  const countWithoutNav = countForWidth(railWidth);
-  const navSideSpace = totalStories > countWithoutNav ? STORY_NAV_SIDE_SPACE : 0;
-  const availableWidth = railWidth - navSideSpace * 2;
+  const availableWidth = railWidth;
   const visibleCount = countForWidth(availableWidth);
   const tileWidth = (availableWidth - STORY_TILE_GAP * (visibleCount - 1)) / visibleCount;
   const avatarSize = Math.max(STORY_MIN_AVATAR_SIZE, Math.min(STORY_MAX_AVATAR_SIZE, tileWidth - 10));
 
-  return { visibleCount, tileWidth, avatarSize, navSideSpace };
+  return { visibleCount, tileWidth, avatarSize };
 }
 
 function hasUnreadStories(group) {
@@ -180,8 +177,7 @@ export function FeedPage() {
       setStoryLayout((current) =>
         current.visibleCount === nextLayout.visibleCount &&
         current.tileWidth === nextLayout.tileWidth &&
-        current.avatarSize === nextLayout.avatarSize &&
-        current.navSideSpace === nextLayout.navSideSpace
+        current.avatarSize === nextLayout.avatarSize
           ? current
           : nextLayout,
       );
@@ -204,8 +200,7 @@ export function FeedPage() {
   const storyPageCount = Math.ceil(storyGroups.length / storyLayout.visibleCount);
   const canPreviousStories = storyPage > 0;
   const canNextStories = storyPage < storyPageCount - 1;
-  const storyRailAlignClass = canPreviousStories ? "justify-center" : "justify-start";
-  const storyRailLeftSpace = canPreviousStories ? storyLayout.navSideSpace : 0;
+  const storyRailLeftSpace = canPreviousStories ? STORY_NAV_NUDGE_SPACE : 0;
   const openStoryGroup = (group) => {
     if (group.isOwner && !hasStories(group)) {
       onCreateStory?.();
@@ -221,10 +216,9 @@ export function FeedPage() {
           <section className="border-b border-gray-100 py-4 dark:border-gray-900">
             <div className="relative px-2">
               <div
-                className={`flex gap-3 overflow-hidden ${storyRailAlignClass}`}
+                className="flex justify-start gap-3 overflow-hidden"
                 style={{
                   paddingLeft: `${storyRailLeftSpace}px`,
-                  paddingRight: `${storyLayout.navSideSpace}px`,
                 }}
               >
                 {visibleStoryGroups.map((group) => (
