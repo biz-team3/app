@@ -7,6 +7,7 @@ import { useLanguage } from "../../hooks/useLanguage.js";
 import { ConfirmDialog } from "../../components/modals/ConfirmDialog.jsx";
 import { PostEditModal } from "../../components/modals/PostEditModal.jsx";
 import { formatRelativeTime } from "../../utils/format.js";
+import { PostCaptionText } from "./PostCaptionText.jsx";
 
 const COMMENTS_PAGE_SIZE = 20;
 const CAPTION_PREVIEW_LINES = 3;
@@ -319,14 +320,14 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
           </header>
 
           <div ref={commentsScrollRef} className="flex-1 overflow-y-auto px-4 py-4">
-            <div className="mb-5 text-sm leading-relaxed break-words [overflow-wrap:anywhere] [white-space:break-spaces]">
-              <p
+            <div className="mb-5 text-sm">
+              <PostCaptionText
                 ref={captionRef}
-                className={captionExpanded ? "" : "overflow-hidden"}
-                style={captionExpanded ? undefined : { maxHeight: `${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em` }}
-              >
-                {post.caption}
-              </p>
+                caption={post.caption || ""}
+                collapsed={!captionExpanded}
+                maxHeight={`${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em`}
+                className="leading-relaxed"
+              />
               {captionNeedsPreview && (
                 <button
                   onClick={() => setCaptionExpanded((value) => !value)}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Grid, Images, Lock } from "lucide-react";
+import { Bookmark, Grid, Images, Lock, Plus } from "lucide-react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 import { followUser, unfollowUser } from "../../api/followsApi.js";
 import { getMyProfile, getProfileByUsername, getProfilePosts } from "../../api/profileApi.js";
@@ -12,10 +12,20 @@ import { formatCount } from "../../utils/format.js";
 import { useLanguage } from "../../hooks/useLanguage.js";
 
 const PROFILE_POST_PAGE_SIZE = 12;
+const PROFILE_CONTENT_POSTS = "POSTS";
+const PROFILE_CONTENT_SAVED = "SAVED";
+
+function hasUnreadStories(stories) {
+  return (stories || []).some((story) => !story.isRead);
+}
+
+function getAllowedProfileContentType(profile, contentType) {
+  return profile?.isOwner && contentType === PROFILE_CONTENT_SAVED ? PROFILE_CONTENT_SAVED : PROFILE_CONTENT_POSTS;
+}
 
 export function ProfilePage() {
   const { username } = useParams();
-  const { feedVersion, registerPageRefreshHandler } = useOutletContext();
+  const { feedVersion, onCreateStory, registerPageRefreshHandler } = useOutletContext();
   const { t } = useLanguage();
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
@@ -24,6 +34,7 @@ export function ProfilePage() {
   const [selectedPostId, setSelectedPostId] = useState(null);
   const [followListType, setFollowListType] = useState(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [contentType, setContentType] = useState(PROFILE_CONTENT_POSTS);
   const [postPage, setPostPage] = useState(0);
   const [postsHasNext, setPostsHasNext] = useState(false);
   const [postsLoading, setPostsLoading] = useState(false);
@@ -38,30 +49,46 @@ export function ProfilePage() {
     try {
       const nextProfile = username ? await getProfileByUsername(username) : await getMyProfile();
       setProfile(nextProfile);
-      const [postResult, storyResult] = await Promise.all([
-        getProfilePosts(nextProfile.userId, { page: 0, size: PROFILE_POST_PAGE_SIZE }),
+      const requestContentType = getAllowedProfileContentType(nextProfile, contentType);
+      if (requestContentType !== contentType) setContentType(requestContentType);
+      const [postResult, storyResult] = await Promise.allSettled([
+        getProfilePosts(nextProfile.userId, { page: 0, size: PROFILE_POST_PAGE_SIZE, type: requestContentType }),
         getStoryBundle(nextProfile.userId),
       ]);
-      setPosts(postResult.content);
-      setStories(storyResult.stories);
-      setPostPage(postResult.pageRequest.page);
-      setPostsHasNext(postResult.hasNext);
+
+      setStories(storyResult.status === "fulfilled" ? storyResult.value.stories : []);
+
+      if (postResult.status !== "fulfilled") {
+        setPosts([]);
+        setPostPage(0);
+        setPostsHasNext(false);
+        setPostsError(t("profilePostsLoadFailed"));
+        return;
+      }
+
+      setPosts(postResult.value.content);
+      setPostPage(postResult.value.pageRequest.page);
+      setPostsHasNext(postResult.value.hasNext);
     } catch {
       setPostsError(t("profileLoadFailed"));
     } finally {
       setPostsLoading(false);
       postsLoadingRef.current = false;
     }
-  }, [feedVersion, t, username]);
+  }, [contentType, feedVersion, t, username]);
 
   const loadNextPosts = useCallback(async () => {
     if (!profile || postsLoadingRef.current || !postsHasNext) return;
     postsLoadingRef.current = true;
     setPostsLoading(true);
-    setPostsError("");
+      setPostsError("");
     try {
       const nextPage = postPage + 1;
-      const result = await getProfilePosts(profile.userId, { page: nextPage, size: PROFILE_POST_PAGE_SIZE });
+      const result = await getProfilePosts(profile.userId, {
+        page: nextPage,
+        size: PROFILE_POST_PAGE_SIZE,
+        type: getAllowedProfileContentType(profile, contentType),
+      });
       setPosts((current) => [...current, ...result.content]);
       setPostPage(result.pageRequest.page);
       setPostsHasNext(result.hasNext);
@@ -71,11 +98,19 @@ export function ProfilePage() {
       setPostsLoading(false);
       postsLoadingRef.current = false;
     }
-  }, [postPage, postsHasNext, profile, t]);
+  }, [contentType, postPage, postsHasNext, profile, t]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    setContentType(PROFILE_CONTENT_POSTS);
+    setPosts([]);
+    setPostPage(0);
+    setPostsHasNext(false);
+    setPostsError("");
+  }, [username]);
 
   useEffect(() => {
     registerPageRefreshHandler?.(load);
@@ -125,6 +160,18 @@ export function ProfilePage() {
     profile.viewerRelation === "NOT_FOLLOWING"
       ? "bg-blue-500 text-white"
       : "bg-gray-100 text-black dark:bg-gray-800 dark:text-white";
+  const contentTabs = [
+    { type: PROFILE_CONTENT_POSTS, label: t("posts"), Icon: Grid },
+    ...(profile.isOwner ? [{ type: PROFILE_CONTENT_SAVED, label: t("savedPosts"), Icon: Bookmark }] : []),
+  ];
+  const handleContentTypeChange = (nextContentType) => {
+    if (contentType === nextContentType) return;
+    setContentType(nextContentType);
+    setPosts([]);
+    setPostPage(0);
+    setPostsHasNext(false);
+    setPostsError("");
+  };
 
   const hasProfileStories = stories.length > 0;
   const storyGroups = [
@@ -136,8 +183,17 @@ export function ProfilePage() {
       stories,
     },
   ];
+  const profileStoryRingClass = hasProfileStories
+    ? hasUnreadStories(stories)
+      ? "bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600"
+      : "bg-gray-300 dark:bg-gray-700"
+    : "bg-gray-200 dark:bg-gray-800";
   const handleProfileStoryClick = () => {
-    if (hasProfileStories) setViewerOpen(true);
+    if (hasProfileStories) {
+      setViewerOpen(true);
+      return;
+    }
+    if (profile.isOwner) onCreateStory?.();
   };
   const mutualFollowerText = formatMutualFollowerText(profile, t);
 
@@ -147,10 +203,15 @@ export function ProfilePage() {
         <header className="mb-12 flex w-full flex-col items-center justify-center gap-8 md:flex-row md:gap-20">
           <button
             onClick={handleProfileStoryClick}
-            disabled={!hasProfileStories}
-            className={`h-28 w-28 rounded-full p-1 md:h-40 md:w-40 ${hasProfileStories ? "bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600" : "bg-gray-200 dark:bg-gray-800"}`}
+            disabled={!hasProfileStories && !profile.isOwner}
+            className={`relative h-28 w-28 rounded-full p-1 md:h-40 md:w-40 ${profileStoryRingClass}`}
           >
             <img src={profile.profileImageUrl} alt="" className="h-full w-full rounded-full border-4 border-white object-cover dark:border-black" />
+            {profile.isOwner && !hasProfileStories && (
+              <span className="absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full border-4 border-white bg-white text-black shadow-sm ring-1 ring-gray-300 dark:border-black dark:bg-zinc-900 dark:text-white dark:ring-zinc-700 md:h-10 md:w-10">
+                <Plus className="h-5 w-5" />
+              </span>
+            )}
           </button>
           <div className="flex flex-1 flex-col items-center text-center md:items-start md:text-left">
             <div className="mb-5 flex flex-col items-center gap-4 md:flex-row">
@@ -184,11 +245,24 @@ export function ProfilePage() {
         </header>
 
         <section className="w-full max-w-4xl border-t border-gray-200 dark:border-gray-800">
-          <div className="flex justify-center">
-            <div className="flex items-center gap-2 border-t border-black py-4 dark:border-white">
-              <Grid className="h-4 w-4" />
-              <span className="text-[12px] font-bold uppercase tracking-widest">{t("posts")}</span>
-            </div>
+          <div className="flex justify-center gap-12">
+            {contentTabs.map(({ type, label, Icon }) => {
+              const active = contentType === type;
+              return (
+                <button
+                  key={type}
+                  onClick={() => handleContentTypeChange(type)}
+                  className={`flex items-center gap-2 border-t py-4 text-[12px] font-bold uppercase tracking-widest ${
+                    active
+                      ? "border-black text-black dark:border-white dark:text-white"
+                      : "border-transparent text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{label}</span>
+                </button>
+              );
+            })}
           </div>
         </section>
 
@@ -230,10 +304,10 @@ export function ProfilePage() {
         ) : postsLoading ? (
           <div className="py-20 text-center text-sm font-semibold text-gray-400">{t("loadingPosts")}</div>
         ) : (
-          <div className="py-20 text-center text-gray-500">{t("noPosts")}</div>
+          <div className="py-20 text-center text-gray-500">{contentType === PROFILE_CONTENT_SAVED ? t("noSavedPosts") : t("noPosts")}</div>
         )}
       </div>
-      {viewerOpen && <StoryViewer groups={storyGroups} onClose={() => setViewerOpen(false)} onDeleted={load} />}
+      {viewerOpen && <StoryViewer groups={storyGroups} onClose={() => setViewerOpen(false)} onDeleted={load} onViewed={load} />}
       {selectedPostId && <PostDetailModal postId={selectedPostId} onClose={() => setSelectedPostId(null)} onChanged={load} />}
       {followListType && <FollowListModal type={followListType} userId={profile.userId} onClose={() => setFollowListType(null)} onChanged={load} />}
       <ProfileEditModal isOpen={editOpen} onClose={() => setEditOpen(false)} onSaved={load} />

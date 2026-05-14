@@ -2,35 +2,54 @@ import { apiRequest } from "./mockClient.js";
 
 const STORY_ACTIVE_MS = 24 * 60 * 60 * 1000;
 
+function toBoolean(value) {
+  return value === true || value === 1 || value === "1" || value === "true";
+}
+
 export function isActiveStory(story) {
   const createdAt = new Date(story.createdAt).getTime();
   return !story.deletedAt && Number.isFinite(createdAt) && Date.now() - createdAt < STORY_ACTIVE_MS;
 }
 
-export function toStoryItem(story) {
+export function toStoryItem(story = {}) {
   return {
     storyId: story.storyId,
     imageUrl: story.imageUrl,
     createdAt: story.createdAt,
+    isRead: toBoolean(story.isRead),
   };
 }
 
-function toStoryGroup(group) {
+export function toStoryGroup(group = {}) {
+  const source = group || {};
   return {
-    userId: group.userId,
-    username: group.username,
-    profileImageUrl: group.profileImageUrl,
-    isOwner: Boolean(group.isOwner),
-    stories: (group.stories || []).map(toStoryItem),
+    userId: source.userId,
+    username: source.username,
+    profileImageUrl: source.profileImageUrl,
+    isOwner: toBoolean(source.isOwner ?? source.owner),
+    stories: (source.stories || []).map(toStoryItem),
   };
 }
 
-export async function getFeedStories() {
-  const result = await apiRequest("/api/stories/feed", {
+export async function getFeedStories({ page = 0, size = 50 } = {}) {
+  const params = new URLSearchParams({
+    page: String(page),
+    size: String(size),
+  });
+  const result = await apiRequest(`/api/stories/feed?${params.toString()}`, {
     method: "GET",
   });
+
+  const content = (result.content || []).map(toStoryGroup);
+  const pageRequest = result.pageRequest || { page, size };
+  const total = result.total ?? content.length;
+
   return {
-    storyGroups: (result.storyGroups || []).map(toStoryGroup),
+    content,
+    pageRequest,
+    total,
+    totalPages: result.totalPages ?? (pageRequest.size ? Math.ceil(total / pageRequest.size) : 1),
+    hasNext: Boolean(result.hasNext),
   };
 }
 
@@ -52,6 +71,14 @@ export async function createStory(file) {
   await apiRequest("/api/stories", {
     method: "POST",
     body: formData,
+  });
+
+  return null;
+}
+
+export async function markStoryAsRead(storyId) {
+  await apiRequest(`/api/stories/view/${storyId}`, {
+    method: "POST",
   });
 
   return null;

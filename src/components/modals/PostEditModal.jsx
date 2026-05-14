@@ -3,11 +3,8 @@ import { ChevronLeft, ChevronRight, Image as ImageIcon, Trash2, X } from "lucide
 import { uploadPostMedia } from "../../api/mediaApi.js";
 import { replacePostMedia, updatePostCaption } from "../../api/postsApi.js";
 import { useLanguage } from "../../hooks/useLanguage.js";
+import { extractHashtags } from "../../utils/hashtags.js";
 import { IMAGE_FILE_ACCEPT, validateImageFiles } from "../../utils/mediaValidation.js";
-
-function extractHashtags(text) {
-  return Array.from(new Set(text.match(/#[^\s#]+/g) || []));
-}
 
 function getMediaUrl(media) {
   return media.previewUrl || media.url;
