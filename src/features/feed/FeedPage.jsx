@@ -11,14 +11,16 @@ import { useAuth } from "../../hooks/useAuth.js";
 import { useLanguage } from "../../hooks/useLanguage.js";
 
 const STORY_MIN_TILE_WIDTH = 74;
-const STORY_TILE_GAP = 12;
-const STORY_NAV_NUDGE_SPACE = 12;
+const STORY_TILE_GAP = 5;
+const STORY_NAV_NUDGE_SPACE = 0;
+const STORY_NAV_BUTTON_SIZE = 28;
+const STORY_RING_EXTRA_SIZE = 9;
 const FEED_MAX_WIDTH = 600;
 const FEED_HORIZONTAL_PADDING = 16;
-const STORY_RAIL_HORIZONTAL_PADDING = 16;
+const STORY_RAIL_HORIZONTAL_PADDING = 24;
 const STORY_MIN_VISIBLE_COUNT = 5;
-const STORY_MAX_VISIBLE_COUNT = 6;
-const STORY_MIN_AVATAR_SIZE = 28;
+const STORY_MAX_VISIBLE_COUNT = 7;
+const STORY_MIN_AVATAR_SIZE = 32;
 const STORY_MAX_AVATAR_SIZE = 78;
 const DEFAULT_STORY_LAYOUT = {
   visibleCount: STORY_MIN_VISIBLE_COUNT,
@@ -48,7 +50,7 @@ function getStoryLayoutForViewport(totalStories = 0) {
   const availableWidth = railWidth - navNudgeSpace * 2;
   const visibleCount = countForWidth(availableWidth);
   const tileWidth = (availableWidth - STORY_TILE_GAP * (visibleCount - 1)) / visibleCount;
-  const avatarSize = Math.max(STORY_MIN_AVATAR_SIZE, Math.min(STORY_MAX_AVATAR_SIZE, tileWidth - 10));
+  const avatarSize = Math.max(STORY_MIN_AVATAR_SIZE, Math.min(STORY_MAX_AVATAR_SIZE, tileWidth - STORY_RING_EXTRA_SIZE));
 
   return { visibleCount, tileWidth, avatarSize, navNudgeSpace };
 }
@@ -211,6 +213,7 @@ export function FeedPage() {
   const canNextStories = storyPage < storyPageCount - 1;
   const storyRailLeftSpace = canPreviousStories ? storyLayout.navNudgeSpace : 0;
   const storyRailRightSpace = canNextStories ? storyLayout.navNudgeSpace : 0;
+  const storyNavTop = Math.max(0, (storyLayout.avatarSize + STORY_RING_EXTRA_SIZE - STORY_NAV_BUTTON_SIZE) / 2);
   const openStoryGroup = (group) => {
     if (group.isOwner && !hasStories(group)) {
       onCreateStory?.();
@@ -224,10 +227,12 @@ export function FeedPage() {
       <div className="w-full max-w-[600px]">
         {storyGroups.length > 0 && (
           <section className="border-b border-gray-100 py-4 dark:border-gray-900">
-            <div className="relative px-2">
+            <div className="relative px-3">
               <div
-                className="flex justify-start gap-3 overflow-hidden"
+                className="grid overflow-hidden"
                 style={{
+                  gap: `${STORY_TILE_GAP}px`,
+                  gridTemplateColumns: `repeat(${storyLayout.visibleCount}, minmax(0, 1fr))`,
                   paddingLeft: `${storyRailLeftSpace}px`,
                   paddingRight: `${storyRailRightSpace}px`,
                 }}
@@ -236,8 +241,7 @@ export function FeedPage() {
                   <button
                     key={group.userId}
                     onClick={() => openStoryGroup(group)}
-                    className="flex shrink-0 flex-col items-center gap-1.5"
-                    style={{ width: `${storyLayout.tileWidth}px` }}
+                    className="flex min-w-0 flex-col items-center gap-1.5"
                   >
                     <div className={`relative shrink-0 rounded-full p-[2.5px] ${getStoryRingClass(group)}`}>
                       <div className="rounded-full bg-white p-[2px] dark:bg-black">
@@ -265,9 +269,10 @@ export function FeedPage() {
                   <button
                     onClick={() => setStoryPage((value) => Math.max(0, value - 1))}
                     disabled={!canPreviousStories}
-                    className={`absolute left-0 top-[30px] flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-md dark:bg-gray-900 ${
+                    className={`absolute left-0 flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-md dark:bg-gray-900 ${
                       canPreviousStories ? "opacity-100" : "pointer-events-none opacity-0"
                     }`}
+                    style={{ top: `${storyNavTop}px` }}
                     aria-label="Previous stories"
                   >
                     <ChevronLeft className="h-4 w-4" />
@@ -275,9 +280,10 @@ export function FeedPage() {
                   <button
                     onClick={() => setStoryPage((value) => Math.min(storyPageCount - 1, value + 1))}
                     disabled={!canNextStories}
-                    className={`absolute right-0 top-[30px] flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-md dark:bg-gray-900 ${
+                    className={`absolute right-0 flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-md dark:bg-gray-900 ${
                       canNextStories ? "opacity-100" : "pointer-events-none opacity-0"
                     }`}
+                    style={{ top: `${storyNavTop}px` }}
                     aria-label="Next stories"
                   >
                     <ChevronRight className="h-4 w-4" />
