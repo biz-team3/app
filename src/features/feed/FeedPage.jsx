@@ -17,6 +17,7 @@ const FEED_MAX_WIDTH = 600;
 const FEED_HORIZONTAL_PADDING = 16;
 const STORY_RAIL_HORIZONTAL_PADDING = 16;
 const STORY_MIN_VISIBLE_COUNT = 5;
+const STORY_MAX_VISIBLE_COUNT = 6;
 const STORY_MIN_AVATAR_SIZE = 28;
 const STORY_MAX_AVATAR_SIZE = 64;
 const DEFAULT_STORY_LAYOUT = {
@@ -37,7 +38,11 @@ function getStoryLayoutForViewport(totalStories = 0) {
   const railWidth = feedWidth - STORY_RAIL_HORIZONTAL_PADDING;
   if (!Number.isFinite(railWidth) || railWidth <= 0) return DEFAULT_STORY_LAYOUT;
 
-  const countForWidth = (width) => Math.max(STORY_MIN_VISIBLE_COUNT, Math.floor((width + STORY_TILE_GAP) / (STORY_MIN_TILE_WIDTH + STORY_TILE_GAP)));
+  const countForWidth = (width) =>
+    Math.min(
+      STORY_MAX_VISIBLE_COUNT,
+      Math.max(STORY_MIN_VISIBLE_COUNT, Math.floor((width + STORY_TILE_GAP) / (STORY_MIN_TILE_WIDTH + STORY_TILE_GAP))),
+    );
   const countWithoutNudge = countForWidth(railWidth);
   const navNudgeSpace = totalStories > countWithoutNudge ? STORY_NAV_NUDGE_SPACE : 0;
   const availableWidth = railWidth - navNudgeSpace * 2;
