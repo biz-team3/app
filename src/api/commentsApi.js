@@ -26,6 +26,7 @@ function toComment(comment) {
     author: {
       userId: author.userId,
       username: author.username,
+      profileImageUrl: author.profileImageUrl,
     },
     text: comment.text,
     createdAt: comment.createdAt,
