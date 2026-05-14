@@ -7,15 +7,20 @@ import { ConfirmDialog } from "../../components/modals/ConfirmDialog.jsx";
 import { PostEditModal } from "../../components/modals/PostEditModal.jsx";
 import { formatRelativeTime } from "../../utils/format.js";
 
+const CAPTION_PREVIEW_LINES = 3;
+const CAPTION_LINE_HEIGHT = 1.625;
+
 export function PostCard({ post, onChanged, onOpenDetail }) {
   const { t } = useLanguage();
   const [currentMedia, setCurrentMedia] = useState(0);
   const [expanded, setExpanded] = useState(false);
+  const [captionNeedsPreview, setCaptionNeedsPreview] = useState(false);
   const [translated, setTranslated] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [deletingPost, setDeletingPost] = useState(false);
   const [actionError, setActionError] = useState("");
+  const captionRef = useRef(null);
   const menuRef = useRef(null);
 
   const mediaCount = post.media.length;
@@ -29,6 +34,8 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
     setEditOpen(false);
     setDeletingPost(false);
     setActionError("");
+    setExpanded(false);
+    setCaptionNeedsPreview(false);
   }, [post.postId, post.caption, post.media]);
 
   useEffect(() => {
@@ -40,6 +47,24 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (expanded) return undefined;
+
+    const measureCaption = () => {
+      const captionElement = captionRef.current;
+      if (!captionElement) return;
+      setCaptionNeedsPreview(captionElement.scrollHeight - captionElement.clientHeight > 1);
+    };
+
+    const animationFrameId = requestAnimationFrame(measureCaption);
+    window.addEventListener("resize", measureCaption);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      window.removeEventListener("resize", measureCaption);
+    };
+  }, [captionText, expanded]);
 
   const toggleLike = async () => {
     setActionError("");
@@ -147,11 +172,21 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
           </button>
         </div>
         {actionError ? <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-500 dark:bg-red-950/30">{actionError}</p> : null}
-        <p className="text-sm leading-relaxed">
-          <span className="mr-2 font-bold">{post.author.username}</span>
-          {expanded ? captionText : captionText.slice(0, 70)}
-          {captionText.length > 70 && !expanded && <button onClick={() => setExpanded(true)} className="ml-1 text-gray-400">... {t("more")}</button>}
-        </p>
+        <div className="text-sm leading-relaxed break-words [overflow-wrap:anywhere] [white-space:break-spaces]">
+          <p
+            ref={captionRef}
+            className={expanded ? "" : "overflow-hidden"}
+            style={expanded ? undefined : { maxHeight: `${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em` }}
+          >
+            <span className="mr-2 font-bold">{post.author.username}</span>
+            {captionText}
+          </p>
+          {captionNeedsPreview && (
+            <button onClick={() => setExpanded((value) => !value)} className="mt-1 font-semibold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+              {expanded ? t("close") : t("more")}
+            </button>
+          )}
+        </div>
         <button onClick={() => setTranslated((value) => !value)} className="w-fit text-[10px] font-bold uppercase text-gray-500">
           {translated ? t("seeOriginal") : t("seeTranslation")}
         </button>
