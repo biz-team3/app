@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Bell, Camera, Home, LogOut, Menu, MoonStar, PlusCircle, Settings, User } from "lucide-react";
+import { Bell, Camera, Home, LogOut, Menu, PlusCircle, Settings, User } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useLanguage } from "../../hooks/useLanguage.js";
 
-export function Sidebar({ onCreate, onNotifications, notificationBadgeCount = 0, onSettings, onThemeToggle, onLogout }) {
+export function Sidebar({ onCreate, onNotifications, notificationBadgeCount = 0, onSettings, onAccount, onLogout }) {
   const location = useLocation();
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -91,13 +91,13 @@ export function Sidebar({ onCreate, onNotifications, notificationBadgeCount = 0,
             </button>
             <button
               onClick={() => {
-                onThemeToggle();
                 setMoreOpen(false);
+                onAccount();
               }}
               className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-900"
             >
-              <MoonStar className="h-5 w-5" />
-              {t("appearance")}
+              <User className="h-5 w-5" />
+              {t("account")}
             </button>
             <button
               onClick={() => {
