@@ -259,8 +259,8 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
       setTranslatedCaption(result.translatedContent);
       setCaptionTranslated(true);
       setPost((currentPost) => currentPost ? { ...currentPost, translatedCaption: result.translatedContent } : currentPost);
-    } catch {
-      setActionError(t("translationFailed"));
+    } catch (error) {
+      setActionError(getTranslationErrorMessage(error, t));
     } finally {
       setCaptionTranslating(false);
     }
@@ -476,4 +476,12 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
       </div>
     </div>
   );
+}
+
+function getTranslationErrorMessage(error, t) {
+  if (error?.message?.includes("DeepL API 키")) {
+    return t("translationSetupRequired");
+  }
+
+  return error?.message || t("translationFailed");
 }

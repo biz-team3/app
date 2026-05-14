@@ -121,8 +121,8 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
       const result = await translatePostCaption(post.postId);
       setTranslatedCaption(result.translatedContent);
       setTranslated(true);
-    } catch {
-      setActionError(t("translationFailed"));
+    } catch (error) {
+      setActionError(getTranslationErrorMessage(error, t));
     } finally {
       setTranslatingCaption(false);
     }
@@ -236,4 +236,12 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
       <PostEditModal post={post} isOpen={editOpen} onClose={() => setEditOpen(false)} onSaved={onChanged} />
     </article>
   );
+}
+
+function getTranslationErrorMessage(error, t) {
+  if (error?.message?.includes("DeepL API 키")) {
+    return t("translationSetupRequired");
+  }
+
+  return error?.message || t("translationFailed");
 }
