@@ -412,14 +412,14 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
       >
         {postHeader("flex md:hidden")}
         <div
-          className="relative flex aspect-square min-h-[220px] shrink-0 overflow-hidden bg-gray-50 dark:bg-zinc-950 md:h-[min(780px,92vh,calc(100vw-422px))] md:w-[min(780px,92vh,calc(100vw-422px))] md:shrink"
+          className="relative flex aspect-square min-h-[220px] shrink-0 overflow-hidden bg-gray-50 dark:bg-zinc-950 md:h-[min(780px,92vh,calc(100vw-422px))] md:w-[min(780px,92vh,calc(100vw-422px))] md:shrink md:self-center"
           onWheel={handleMediaWheel}
         >
           {showPostContent ? (
             <>
               <div className="flex h-full w-full transition-transform duration-300" style={{ transform: `translateX(-${currentMedia * 100}%)` }}>
                 {post.media.map((media) => (
-                  <img key={media.mediaId} src={media.url} alt="" className="h-full w-full shrink-0 object-cover" />
+                  <img key={media.mediaId} src={media.url} alt="" className="h-full w-full shrink-0 object-cover object-center" />
                 ))}
               </div>
               {currentMedia > 0 && (
