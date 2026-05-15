@@ -109,7 +109,7 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
   useEffect(() => {
     const sentinel = commentsSentinelRef.current;
     if (!sentinel || !commentsHasNext) return undefined;
-    const desktopDetailLayout = window.matchMedia("(min-width: 1280px)").matches;
+    const desktopDetailLayout = window.matchMedia("(min-width: 768px)").matches;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -395,7 +395,7 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
   );
 
   const handleMediaWheel = (event) => {
-    if (!window.matchMedia("(min-width: 1280px)").matches) return;
+    if (!window.matchMedia("(min-width: 768px)").matches) return;
     const scrollElement = commentsScrollRef.current;
     if (!scrollElement || scrollElement.scrollHeight <= scrollElement.clientHeight) return;
 
@@ -407,19 +407,19 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/65 p-4 backdrop-blur-[1px]" onMouseDown={onClose}>
       <article
         ref={modalScrollRef}
-        className="grid h-[min(860px,92vh)] w-full max-w-[1364px] grid-rows-[auto_auto_minmax(0,1fr)] overflow-y-auto rounded-xl bg-white shadow-2xl dark:bg-black xl:grid-cols-[minmax(0,1fr)_390px] xl:grid-rows-none xl:overflow-hidden"
+        className="flex max-h-[92vh] w-full max-w-[1120px] flex-col overflow-y-auto rounded-xl bg-white shadow-2xl dark:bg-black md:grid md:h-auto md:w-auto md:grid-cols-[minmax(0,auto)_390px] md:overflow-hidden"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        {postHeader("flex xl:hidden")}
+        {postHeader("flex md:hidden")}
         <div
-          className="relative flex h-[min(62vw,54vh)] min-h-[220px] overflow-hidden bg-gray-50 dark:bg-zinc-950 xl:h-full xl:min-h-0"
+          className="relative flex aspect-square min-h-[220px] shrink-0 overflow-hidden bg-gray-50 dark:bg-zinc-950 md:h-[min(780px,92vh,calc(100vw-422px))] md:w-[min(780px,92vh,calc(100vw-422px))] md:shrink"
           onWheel={handleMediaWheel}
         >
           {showPostContent ? (
             <>
               <div className="flex h-full w-full transition-transform duration-300" style={{ transform: `translateX(-${currentMedia * 100}%)` }}>
                 {post.media.map((media) => (
-                  <img key={media.mediaId} src={media.url} alt="" className="h-full w-full shrink-0 object-contain" />
+                  <img key={media.mediaId} src={media.url} alt="" className="h-full w-full shrink-0 object-cover" />
                 ))}
               </div>
               {currentMedia > 0 && (
@@ -448,10 +448,10 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
           )}
         </div>
 
-        <div className="flex min-h-0 flex-col border-gray-200 dark:border-gray-800 xl:border-l">
-          {postHeader("hidden xl:flex")}
+        <div className="flex min-h-0 shrink-0 flex-col border-gray-200 dark:border-gray-800 md:shrink md:border-l">
+          {postHeader("hidden md:flex")}
 
-          <div ref={commentsScrollRef} className="px-4 py-4 xl:flex-1 xl:overflow-y-auto">
+          <div ref={commentsScrollRef} className="px-4 py-4 md:flex-1 md:overflow-y-auto">
             {showPostContent ? (
               <>
                 <div className="mb-5 text-sm">
