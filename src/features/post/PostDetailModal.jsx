@@ -407,12 +407,12 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/65 p-4 backdrop-blur-[1px]" onMouseDown={onClose}>
       <article
         ref={modalScrollRef}
-        className="flex max-h-[92vh] w-full max-w-[1120px] flex-col overflow-y-auto rounded-xl bg-white shadow-2xl dark:bg-black md:grid md:h-auto md:w-auto md:grid-cols-[minmax(0,auto)_390px] md:overflow-hidden"
+        className="flex max-h-[92vh] w-full max-w-[1120px] flex-col overflow-y-auto rounded-xl bg-white shadow-2xl dark:bg-black md:grid md:h-[min(780px,92vh)] md:w-auto md:grid-cols-[minmax(0,auto)_390px] md:overflow-hidden"
         onMouseDown={(event) => event.stopPropagation()}
       >
         {postHeader("flex md:hidden")}
         <div
-          className="relative flex aspect-square min-h-[220px] shrink-0 overflow-hidden bg-gray-50 dark:bg-zinc-950 md:h-[min(780px,92vh,calc(100vw-422px))] md:w-[min(780px,92vh,calc(100vw-422px))] md:shrink md:self-center"
+          className="relative flex aspect-square min-h-[220px] shrink-0 overflow-hidden bg-gray-50 dark:bg-zinc-950 md:h-full md:min-h-0 md:w-[min(780px,92vh,calc(100vw-422px))] md:shrink"
           onWheel={handleMediaWheel}
         >
           {showPostContent ? (
