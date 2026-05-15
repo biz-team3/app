@@ -133,6 +133,7 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
       getPreferences().then((preferences) => {
         setHiddenWordsEnabled(Boolean(preferences.hiddenWordsEnabled));
         setHiddenWords(preferences.hiddenWords || []);
+        setContentRevealed(false);
       });
     };
 

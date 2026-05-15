@@ -68,6 +68,7 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
       getPreferences().then((preferences) => {
         setHiddenWordsEnabled(Boolean(preferences.hiddenWordsEnabled));
         setHiddenWords(preferences.hiddenWords || []);
+        setContentRevealed(false);
       });
     };
 
