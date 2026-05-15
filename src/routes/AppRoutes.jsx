@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth.js";
 import { AppShell } from "../layouts/AppShell.jsx";
@@ -6,6 +7,10 @@ import { FeedPage } from "../features/feed/FeedPage.jsx";
 import { ProfilePage } from "../features/profile/ProfilePage.jsx";
 import { SettingsPage } from "../features/settings/SettingsPage.jsx";
 import { UserCrudPage } from "../features/users/UserCrudPage.jsx";
+
+const PresentationModePage = lazy(() =>
+  import("../features/presentation/PresentationModePage.jsx").then((module) => ({ default: module.PresentationModePage })),
+);
 
 function ProtectedRoute({ children }) {
   const { authenticated, loading } = useAuth();
@@ -19,6 +24,16 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/presentation"
+        element={
+          <ProtectedRoute>
+            <Suspense fallback={<div className="min-h-screen bg-[#0d1117]" />}>
+              <PresentationModePage />
+            </Suspense>
+          </ProtectedRoute>
+        }
+      />
       <Route
         element={
           <ProtectedRoute>
