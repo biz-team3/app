@@ -366,9 +366,12 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
               <Link to={`/profile/${post.author.username}`} onClick={onClose}>
                 <img src={post.author.profileImageUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
               </Link>
-              <Link to={`/profile/${post.author.username}`} onClick={onClose} className="text-sm font-bold hover:underline">
-                {post.author.username}
-              </Link>
+              <div className="min-w-0">
+                <Link to={`/profile/${post.author.username}`} onClick={onClose} className="block truncate text-sm font-bold hover:underline">
+                  {post.author.username}
+                </Link>
+                <p className="text-xs text-gray-400">{postCreatedAtText}</p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               {canManagePost && (
@@ -529,9 +532,6 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
               <button onClick={toggleSave} aria-label={post.savedByMe ? t("unsavePost") : t("savePost")}>
                 <Bookmark className={`h-6 w-6 ${post.savedByMe ? "fill-yellow-400 text-yellow-400" : ""}`} />
               </button>
-            </div>
-            <div className="px-4 pb-3">
-              <p className="mt-1 text-xs text-gray-400">{postCreatedAtText}</p>
             </div>
             <form onSubmit={handleCreateComment} className="flex items-center gap-3 border-t border-gray-100 px-4 py-3 dark:border-gray-800">
               <input value={commentText} onChange={(event) => setCommentText(event.target.value)} placeholder={t("addComment")} className="min-w-0 flex-1 bg-transparent text-sm outline-none" />

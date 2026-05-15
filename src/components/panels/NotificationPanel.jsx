@@ -69,8 +69,8 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
   const handleAccept = async (requestId) => {
     try {
       await acceptFollowRequest(requestId);
-      setRequests((current) => current.filter((request) => request.requestId !== requestId));
-      onChanged?.();
+      await load();
+      await onChanged?.();
     } catch {
       setError(t("followRequestActionFailed"));
     }
@@ -262,8 +262,9 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
 function NotificationItem({ item, t, onOpenPostDetail, onOpenProfile, onNotificationClick, onToggleFollow, followActionLoading, loadedAt }) {
   const message = getNotificationMessage(item, t);
   const targetPostId = Number(item.targetId);
-  const canOpenTargetPost = Number.isFinite(targetPostId);
-  const showFollowButton = item.type === "FOLLOW" && !item.targetImageUrl && item.viewerRelation !== "SELF";
+  const canOpenTargetPost = item.targetType === "POST" && Number.isFinite(targetPostId);
+  const showTargetImage = item.type !== "FOLLOW" && item.targetImageUrl;
+  const showFollowButton = item.type === "FOLLOW" && item.viewerRelation !== "SELF";
   const followButtonLabel = item.viewerRelation === "FOLLOWING" ? t("following") : item.viewerRelation === "PENDING" ? t("requested") : t("follow");
   const followButtonClass =
     item.viewerRelation === "NOT_FOLLOWING"
@@ -298,7 +299,7 @@ function NotificationItem({ item, t, onOpenPostDetail, onOpenProfile, onNotifica
           <span className="ml-1 text-xs text-gray-500">{formatRelativeTime(item.createdAt, loadedAt)}</span>
         </p>
       </div>
-      {item.targetImageUrl && canOpenTargetPost ? (
+      {showTargetImage && canOpenTargetPost ? (
         <button
           type="button"
           onClick={async () => {
@@ -309,11 +310,11 @@ function NotificationItem({ item, t, onOpenPostDetail, onOpenProfile, onNotifica
         >
           <img src={item.targetImageUrl} alt="" className="h-11 w-11 rounded object-cover" />
         </button>
-      ) : item.targetImageUrl && item.actorUsername ? (
+      ) : showTargetImage && item.actorUsername ? (
         <button type="button" onClick={() => onOpenProfile(item.actorUsername)} className="shrink-0 rounded">
           <img src={item.targetImageUrl} alt="" className="h-11 w-11 rounded object-cover" />
         </button>
-      ) : item.targetImageUrl ? (
+      ) : showTargetImage ? (
         <img src={item.targetImageUrl} alt="" className="h-11 w-11 rounded object-cover" />
       ) : showFollowButton ? (
         <button
@@ -331,7 +332,10 @@ function NotificationItem({ item, t, onOpenPostDetail, onOpenProfile, onNotifica
 function getNotificationMessage(item, t) {
   // 서버 notification_type과 프론트 문구를 명시적으로 매핑함.
   // 새 알림 타입을 추가할 때 이 분기를 함께 확장해야 잘못된 기본 문구 노출을 막을 수 있음.
-  if (item.type === "LIKE") return t("likedByOthers", { count: item.actorCount || 0 });
+  if (item.type === "LIKE") {
+    const otherCount = item.actorCount || 0;
+    return otherCount > 0 ? t("likedByOthers", { count: otherCount }) : t("likedPost");
+  }
   if (item.type === "COMMENT") return t("commentedOnPost");
   if (item.type === "FOLLOW") return t("startedFollowing");
   return "";
