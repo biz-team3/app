@@ -45,7 +45,10 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
   const commentsScrollRef = useRef(null);
   const commentsSentinelRef = useRef(null);
   const captionRef = useRef(null);
-  const menuRef = useRef(null);
+  const menuRefs = useRef([]);
+  const registerMenuRef = (element) => {
+    if (element && !menuRefs.current.includes(element)) menuRefs.current.push(element);
+  };
 
   const load = async () => {
     setError("");
@@ -119,7 +122,7 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+      if (!menuRefs.current.some((element) => element.contains(event.target))) {
         setMenuOpen(false);
       }
     };
@@ -321,12 +324,72 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
     }
   };
 
+  const postHeader = (className) => (
+    <header className={`${className} items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800`}>
+      <div className="flex min-w-0 items-center gap-3">
+        <Link to={`/profile/${post.author.username}`} onClick={onClose} className="shrink-0">
+          <img src={post.author.profileImageUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
+        </Link>
+        <div className="min-w-0">
+          <Link to={`/profile/${post.author.username}`} onClick={onClose} className="block truncate text-sm font-bold hover:underline">
+            {post.author.username}
+          </Link>
+          <p className="text-xs text-gray-400">{postCreatedAtText}</p>
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        {canManagePost && (
+          <div ref={registerMenuRef} className="relative">
+            <button
+              onClick={() => setMenuOpen((value) => !value)}
+              className="rounded-full p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-900"
+              aria-label={t("postOptions")}
+            >
+              <MoreHorizontal className="h-5 w-5" />
+            </button>
+            {menuOpen && (
+              <div className="absolute right-0 top-8 z-20 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white text-sm shadow-xl dark:border-gray-800 dark:bg-gray-950">
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    if (onEdit) {
+                      onEdit(post);
+                      onClose();
+                      return;
+                    }
+                    setEditOpen(true);
+                  }}
+                  className="block w-full px-4 py-3 text-left font-semibold hover:bg-gray-50 dark:hover:bg-gray-900"
+                >
+                  {t("editPost")}
+                </button>
+                <button
+                  onClick={() => {
+                    setDeletingPost(true);
+                    setMenuOpen(false);
+                  }}
+                  className="block w-full px-4 py-3 text-left font-semibold text-red-500 hover:bg-gray-50 dark:hover:bg-gray-900"
+                >
+                  {t("deletePost")}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        <button onClick={onClose} className="rounded-full p-1 hover:bg-gray-100 dark:hover:bg-gray-900">
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+    </header>
+  );
+
   return (
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/65 p-4 backdrop-blur-[1px]" onMouseDown={onClose}>
       <article
         className="grid h-[min(780px,92vh)] w-full max-w-[1120px] overflow-hidden rounded-xl bg-white shadow-2xl dark:bg-black md:grid-cols-[minmax(0,1fr)_390px]"
         onMouseDown={(event) => event.stopPropagation()}
       >
+        {postHeader("flex md:hidden")}
         <div className="relative flex min-h-0 overflow-hidden bg-white dark:bg-zinc-950">
           {showPostContent ? (
             <>
@@ -362,62 +425,7 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
         </div>
 
         <div className="flex min-h-0 flex-col border-l border-gray-200 dark:border-gray-800">
-          <header className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
-            <div className="flex items-center gap-3">
-              <Link to={`/profile/${post.author.username}`} onClick={onClose}>
-                <img src={post.author.profileImageUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
-              </Link>
-              <div className="min-w-0">
-                <Link to={`/profile/${post.author.username}`} onClick={onClose} className="block truncate text-sm font-bold hover:underline">
-                  {post.author.username}
-                </Link>
-                <p className="text-xs text-gray-400">{postCreatedAtText}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {canManagePost && (
-                <div ref={menuRef} className="relative">
-                  <button
-                    onClick={() => setMenuOpen((value) => !value)}
-                    className="rounded-full p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-900"
-                    aria-label={t("postOptions")}
-                  >
-                    <MoreHorizontal className="h-5 w-5" />
-                  </button>
-                  {menuOpen && (
-                    <div className="absolute right-0 top-8 z-20 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white text-sm shadow-xl dark:border-gray-800 dark:bg-gray-950">
-                      <button
-                        onClick={() => {
-                          setMenuOpen(false);
-                          if (onEdit) {
-                            onEdit(post);
-                            onClose();
-                            return;
-                          }
-                          setEditOpen(true);
-                        }}
-                        className="block w-full px-4 py-3 text-left font-semibold hover:bg-gray-50 dark:hover:bg-gray-900"
-                      >
-                        {t("editPost")}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setDeletingPost(true);
-                          setMenuOpen(false);
-                        }}
-                        className="block w-full px-4 py-3 text-left font-semibold text-red-500 hover:bg-gray-50 dark:hover:bg-gray-900"
-                      >
-                        {t("deletePost")}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-              <button onClick={onClose} className="rounded-full p-1 hover:bg-gray-100 dark:hover:bg-gray-900">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-          </header>
+          {postHeader("hidden md:flex")}
 
           <div ref={commentsScrollRef} className="flex-1 overflow-y-auto px-4 py-4">
             {showPostContent ? (
