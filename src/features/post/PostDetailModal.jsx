@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { createComment, deleteComment, getPostComments, updateComment } from "../../api/commentsApi.js";
 import { getPreferences } from "../../api/preferencesApi.js";
 import { deletePost, getPostDetail, likePost, savePost, translatePostCaption, unlikePost, unsavePost } from "../../api/postsApi.js";
-import { HiddenTextBlock } from "../../components/content/HiddenTextBlock.jsx";
+import { HiddenContentNotice, HiddenTextBlock } from "../../components/content/HiddenTextBlock.jsx";
 import { useLanguage } from "../../hooks/useLanguage.js";
 import { ConfirmDialog } from "../../components/modals/ConfirmDialog.jsx";
 import { PostEditModal } from "../../components/modals/PostEditModal.jsx";
@@ -40,6 +40,7 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
   const [deletingPost, setDeletingPost] = useState(false);
   const [hiddenWordsEnabled, setHiddenWordsEnabled] = useState(false);
   const [hiddenWords, setHiddenWords] = useState([]);
+  const [contentRevealed, setContentRevealed] = useState(false);
   const [contentWarningAction, setContentWarningAction] = useState(null);
   const commentsScrollRef = useRef(null);
   const commentsSentinelRef = useRef(null);
@@ -97,6 +98,7 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
     setEditingCommentText("");
     setDeletingComment(null);
     setDeletingPost(false);
+    setContentRevealed(false);
     load();
   }, [postId]);
 
@@ -173,7 +175,8 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
   const canManagePost = post.isOwner;
   const canCreateComment = commentText.trim().length > 0;
   const captionText = captionTranslated ? translatedCaption : post.caption;
-  const captionHidden = hiddenWordsEnabled && containsHiddenWord(captionText, hiddenWords);
+  const contentHidden = hiddenWordsEnabled && !post.isOwner && containsHiddenWord(post.caption, hiddenWords);
+  const showPostContent = !contentHidden || contentRevealed;
 
   const toggleLike = async () => {
     setActionError("");
@@ -324,24 +327,35 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="relative flex min-h-0 overflow-hidden bg-white dark:bg-zinc-950">
-          <div className="flex h-full w-full transition-transform duration-300" style={{ transform: `translateX(-${currentMedia * 100}%)` }}>
-            {post.media.map((media) => (
-              <img key={media.mediaId} src={media.url} alt="" className="h-full w-full shrink-0 object-cover" />
-            ))}
-          </div>
-          {currentMedia > 0 && (
-            <button onClick={() => setCurrentMedia((value) => value - 1)} className="absolute left-3 top-1/2 rounded-full bg-white/80 p-1.5 text-black shadow-sm">
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-          )}
-          {currentMedia < mediaCount - 1 && (
-            <button onClick={() => setCurrentMedia((value) => value + 1)} className="absolute right-3 top-1/2 rounded-full bg-white/80 p-1.5 text-black shadow-sm">
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          )}
-          {mediaCount > 1 && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/45 px-3 py-1 text-xs font-semibold text-white">
-              {currentMedia + 1} / {mediaCount}
+          {showPostContent ? (
+            <>
+              <div className="flex h-full w-full transition-transform duration-300" style={{ transform: `translateX(-${currentMedia * 100}%)` }}>
+                {post.media.map((media) => (
+                  <img key={media.mediaId} src={media.url} alt="" className="h-full w-full shrink-0 object-cover" />
+                ))}
+              </div>
+              {currentMedia > 0 && (
+                <button onClick={() => setCurrentMedia((value) => value - 1)} className="absolute left-3 top-1/2 rounded-full bg-white/80 p-1.5 text-black shadow-sm">
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+              )}
+              {currentMedia < mediaCount - 1 && (
+                <button onClick={() => setCurrentMedia((value) => value + 1)} className="absolute right-3 top-1/2 rounded-full bg-white/80 p-1.5 text-black shadow-sm">
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              )}
+              {mediaCount > 1 && (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/45 px-3 py-1 text-xs font-semibold text-white">
+                  {currentMedia + 1} / {mediaCount}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-gray-100 p-6 dark:bg-zinc-950">
+              <HiddenContentNotice
+                className="max-w-[380px] bg-white/95 shadow-sm dark:bg-zinc-900/95"
+                onReveal={() => setContentRevealed(true)}
+              />
             </div>
           )}
         </div>
@@ -402,9 +416,9 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
           </header>
 
           <div ref={commentsScrollRef} className="flex-1 overflow-y-auto px-4 py-4">
-            <div className="mb-5 text-sm">
-              {captionHidden ? (
-                <HiddenTextBlock>
+            {showPostContent ? (
+              <>
+                <div className="mb-5 text-sm">
                   <PostCaptionText
                     ref={captionRef}
                     caption={captionText || ""}
@@ -412,95 +426,91 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
                     maxHeight={`${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em`}
                     className="leading-relaxed"
                   />
-                </HiddenTextBlock>
-              ) : (
-                <PostCaptionText
-                  ref={captionRef}
-                  caption={captionText || ""}
-                  collapsed={!captionExpanded}
-                  maxHeight={`${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em`}
-                  className="leading-relaxed"
-                />
-              )}
-              {!captionHidden && captionNeedsPreview && (
-                <button
-                  onClick={() => setCaptionExpanded((value) => !value)}
-                  className="mt-1 font-semibold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                >
-                  {captionExpanded ? t("close") : t("more")}
-                </button>
-              )}
-              <button onClick={toggleCaptionTranslation} disabled={captionTranslating} className="mt-2 flex w-fit items-center gap-1 text-[10px] font-bold uppercase text-gray-500 disabled:text-gray-300">
-                {captionTranslating && <Loader2 className="h-3 w-3 animate-spin" />}
-                {captionTranslating ? t("translating") : captionTranslated ? t("seeOriginal") : t("seeTranslation")}
-              </button>
-            </div>
+                  {captionNeedsPreview && (
+                    <button
+                      onClick={() => setCaptionExpanded((value) => !value)}
+                      className="mt-1 font-semibold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                    >
+                      {captionExpanded ? t("close") : t("more")}
+                    </button>
+                  )}
+                  <button onClick={toggleCaptionTranslation} disabled={captionTranslating} className="mt-2 flex w-fit items-center gap-1 text-[10px] font-bold uppercase text-gray-500 disabled:text-gray-300">
+                    {captionTranslating && <Loader2 className="h-3 w-3 animate-spin" />}
+                    {captionTranslating ? t("translating") : captionTranslated ? t("seeOriginal") : t("seeTranslation")}
+                  </button>
+                </div>
 
-            <div className="flex flex-col gap-4">
-              {comments.map((comment) => (
-                <div key={comment.commentId} className="flex gap-3 text-sm">
-                  <Link to={`/profile/${comment.author.username}`} onClick={onClose}>
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-bold dark:bg-gray-900">
-                      {comment.author.profileImageUrl ? (
-                        <img
-                          src={comment.author.profileImageUrl}
-                          alt=""
-                          className="h-8 w-8 shrink-0 rounded-full object-cover"
-                        />
-                      ) : (
+                <div className="flex flex-col gap-4">
+                  {comments.map((comment) => (
+                    <div key={comment.commentId} className="flex gap-3 text-sm">
+                      <Link to={`/profile/${comment.author.username}`} onClick={onClose}>
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-bold dark:bg-gray-900">
-                          {comment.author.username.slice(0, 1).toUpperCase()}
+                          {comment.author.profileImageUrl ? (
+                            <img
+                              src={comment.author.profileImageUrl}
+                              alt=""
+                              className="h-8 w-8 shrink-0 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-bold dark:bg-gray-900">
+                              {comment.author.username.slice(0, 1).toUpperCase()}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </Link>
-                  <div className="min-w-0 flex-1">
-                    {editingCommentId === comment.commentId ? (
-                      <div className="rounded-xl border border-gray-200 p-2 dark:border-gray-800">
-                        <input
-                          value={editingCommentText}
-                          onChange={(event) => setEditingCommentText(event.target.value)}
-                          className="w-full bg-transparent text-sm outline-none"
-                          autoFocus
-                        />
-                        <div className="mt-2 flex justify-end gap-2">
-                          <button onClick={() => setEditingCommentId(null)} className="rounded-lg bg-gray-100 px-3 py-1 text-xs font-bold dark:bg-gray-800">
-                            {t("cancel")}
-                          </button>
-                          <button onClick={handleUpdateComment} className="rounded-lg bg-blue-500 px-3 py-1 text-xs font-bold text-white">
-                            {t("save")}
-                          </button>
+                      </Link>
+                      <div className="min-w-0 flex-1">
+                        {editingCommentId === comment.commentId ? (
+                          <div className="rounded-xl border border-gray-200 p-2 dark:border-gray-800">
+                            <input
+                              value={editingCommentText}
+                              onChange={(event) => setEditingCommentText(event.target.value)}
+                              className="w-full bg-transparent text-sm outline-none"
+                              autoFocus
+                            />
+                            <div className="mt-2 flex justify-end gap-2">
+                              <button onClick={() => setEditingCommentId(null)} className="rounded-lg bg-gray-100 px-3 py-1 text-xs font-bold dark:bg-gray-800">
+                                {t("cancel")}
+                              </button>
+                              <button onClick={handleUpdateComment} className="rounded-lg bg-blue-500 px-3 py-1 text-xs font-bold text-white">
+                                {t("save")}
+                              </button>
+                            </div>
+                          </div>
+                        ) : hiddenWordsEnabled && containsHiddenWord(comment.text, hiddenWords) ? (
+                          <HiddenTextBlock>
+                            <p className="leading-relaxed break-words [overflow-wrap:anywhere] [white-space:break-spaces]">
+                              <Link to={`/profile/${comment.author.username}`} onClick={onClose} className="mr-2 font-bold hover:underline">
+                                {comment.author.username}
+                              </Link>
+                              {comment.text}
+                            </p>
+                          </HiddenTextBlock>
+                        ) : (
+                          <p className="leading-relaxed break-words [overflow-wrap:anywhere] [white-space:break-spaces]">
+                            <Link to={`/profile/${comment.author.username}`} onClick={onClose} className="mr-2 font-bold hover:underline">
+                              {comment.author.username}
+                            </Link>
+                            {comment.text}
+                          </p>
+                        )}
+                        <div className="mt-1 flex gap-3 text-xs text-gray-400">
+                          <span>{formatRelativeTime(comment.createdAt)}</span>
+                          {comment.isOwner && editingCommentId !== comment.commentId && <button onClick={() => startEditComment(comment)}>{t("edit")}</button>}
+                          {comment.isOwner && <button onClick={() => setDeletingComment(comment)} className="text-red-400">{t("delete")}</button>}
                         </div>
                       </div>
-                    ) : hiddenWordsEnabled && containsHiddenWord(comment.text, hiddenWords) ? (
-                      <HiddenTextBlock>
-                        <p className="leading-relaxed break-words [overflow-wrap:anywhere] [white-space:break-spaces]">
-                          <Link to={`/profile/${comment.author.username}`} onClick={onClose} className="mr-2 font-bold hover:underline">
-                            {comment.author.username}
-                          </Link>
-                          {comment.text}
-                        </p>
-                      </HiddenTextBlock>
-                    ) : (
-                      <p className="leading-relaxed break-words [overflow-wrap:anywhere] [white-space:break-spaces]">
-                        <Link to={`/profile/${comment.author.username}`} onClick={onClose} className="mr-2 font-bold hover:underline">
-                          {comment.author.username}
-                        </Link>
-                        {comment.text}
-                      </p>
-                    )}
-                    <div className="mt-1 flex gap-3 text-xs text-gray-400">
-                      <span>{formatRelativeTime(comment.createdAt)}</span>
-                      {comment.isOwner && editingCommentId !== comment.commentId && <button onClick={() => startEditComment(comment)}>{t("edit")}</button>}
-                      {comment.isOwner && <button onClick={() => setDeletingComment(comment)} className="text-red-400">{t("delete")}</button>}
                     </div>
-                  </div>
+                  ))}
+                  <div ref={commentsSentinelRef} className="h-1" />
+                  {commentsLoading && <p className="py-2 text-center text-xs font-semibold text-gray-400">{t("loadingComments")}</p>}
+                  {error && <p className="py-2 text-center text-xs font-semibold text-red-500">{error}</p>}
                 </div>
-              ))}
-              <div ref={commentsSentinelRef} className="h-1" />
-              {commentsLoading && <p className="py-2 text-center text-xs font-semibold text-gray-400">{t("loadingComments")}</p>}
-              {error && <p className="py-2 text-center text-xs font-semibold text-red-500">{error}</p>}
-            </div>
+              </>
+            ) : (
+              <div className="py-3">
+                <HiddenContentNotice onReveal={() => setContentRevealed(true)} />
+              </div>
+            )}
           </div>
 
           <footer className="border-t border-gray-100 dark:border-gray-800">

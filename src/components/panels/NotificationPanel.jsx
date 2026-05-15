@@ -116,6 +116,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
 
   const todayNotifications = notifications.filter((item) => getNotificationPeriod(item.createdAt) === "today");
   const weekNotifications = notifications.filter((item) => getNotificationPeriod(item.createdAt) === "week");
+  const monthNotifications = notifications.filter((item) => getNotificationPeriod(item.createdAt) === "month");
 
   return (
     <>
@@ -123,7 +124,7 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
       <aside className="fixed left-0 top-0 z-[80] h-full w-full max-w-[420px] overflow-y-auto border-r border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-black md:left-20">
         {mode === "notifications" ? (
           <>
-            <div className="sticky top-0 flex items-center justify-between bg-white p-6 dark:bg-black">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white p-6 shadow-sm dark:border-gray-900 dark:bg-black">
               <h2 className="text-2xl font-bold">{t("notifications")}</h2>
               <button onClick={onClose}>
                 <X className="h-6 w-6" />
@@ -190,12 +191,30 @@ export function NotificationPanel({ isOpen, onClose, onChanged }) {
                       ))
                     : <p className="text-sm text-gray-500">{t("noWeekNotifications")}</p>}
                 </section>
+                <section className="border-t border-gray-100 px-6 py-5 dark:border-gray-900">
+                  <h3 className="mb-4 font-bold">{t("thisMonth")}</h3>
+                  {monthNotifications.length > 0
+                    ? monthNotifications.map((item) => (
+                        <NotificationItem
+                          key={item.notificationId}
+                          item={item}
+                          t={t}
+                          onOpenPostDetail={setSelectedPostId}
+                          onOpenProfile={handleOpenProfile}
+                          onNotificationClick={handleNotificationClick}
+                          onToggleFollow={handleToggleFollow}
+                          followActionLoading={pendingFollowUserIds.includes(item.actorUserId)}
+                          loadedAt={loadedAt}
+                        />
+                      ))
+                    : <p className="text-sm text-gray-500">{t("noMonthNotifications")}</p>}
+                </section>
               </>
             )}
           </>
         ) : (
           <>
-            <div className="sticky top-0 flex items-center gap-6 bg-white px-6 py-8 dark:bg-black">
+            <div className="sticky top-0 z-10 flex items-center gap-6 border-b border-gray-100 bg-white px-6 py-8 shadow-sm dark:border-gray-900 dark:bg-black">
               <button onClick={() => setMode("notifications")}>
                 <ArrowLeft className="h-6 w-6" />
               </button>
@@ -342,5 +361,6 @@ function getNotificationPeriod(createdAt) {
 
   const diffMs = Math.max(0, Date.now() - timestamp);
   if (diffMs < 24 * 60 * 60 * 1000) return "today";
-  return "week";
+  if (diffMs < 7 * 24 * 60 * 60 * 1000) return "week";
+  return "month";
 }

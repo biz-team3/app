@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { getFeedPosts } from "../../api/postsApi.js";
-import { getPreferences } from "../../api/preferencesApi.js";
 import { getFeedStories, getStoryBundle } from "../../api/storiesApi.js";
 import { StoryViewer } from "../story/StoryViewer.jsx";
 import { PostCard } from "../post/PostCard.jsx";
@@ -10,7 +9,6 @@ import { PostDetailModal } from "../post/PostDetailModal.jsx";
 import { PostEditModal } from "../../components/modals/PostEditModal.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useLanguage } from "../../hooks/useLanguage.js";
-import { containsHiddenWord } from "../../utils/hiddenWords.js";
 
 const STORY_MIN_TILE_WIDTH = 74;
 const STORY_TILE_GAP = 5;
@@ -109,8 +107,6 @@ export function FeedPage() {
   const [hasNext, setHasNext] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [hiddenWordsEnabled, setHiddenWordsEnabled] = useState(false);
-  const [hiddenWords, setHiddenWords] = useState([]);
   const loadingRef = useRef(false);
   const sentinelRef = useRef(null);
 
@@ -171,19 +167,6 @@ export function FeedPage() {
   }, [feedVersion, loadFeedPage, loadStories]);
 
   useEffect(() => {
-    const loadPreferences = () => {
-      getPreferences().then((preferences) => {
-        setHiddenWordsEnabled(Boolean(preferences.hiddenWordsEnabled));
-        setHiddenWords(preferences.hiddenWords || []);
-      });
-    };
-
-    loadPreferences();
-    window.addEventListener("preferences:changed", loadPreferences);
-    return () => window.removeEventListener("preferences:changed", loadPreferences);
-  }, []);
-
-  useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!sentinel) return undefined;
 
@@ -231,9 +214,6 @@ export function FeedPage() {
   const storyRailLeftSpace = canPreviousStories ? storyLayout.navNudgeSpace : 0;
   const storyRailRightSpace = canNextStories ? storyLayout.navNudgeSpace : 0;
   const storyNavTop = Math.max(0, (storyLayout.avatarSize + STORY_RING_EXTRA_SIZE - STORY_NAV_BUTTON_SIZE) / 2);
-  const visiblePosts = hiddenWordsEnabled
-    ? posts.filter((post) => post.isOwner || !containsHiddenWord(post.caption, hiddenWords))
-    : posts;
   const openStoryGroup = (group) => {
     if (group.isOwner && !hasStories(group)) {
       onCreateStory?.();
@@ -314,11 +294,11 @@ export function FeedPage() {
           </section>
         )}
         <section className="mt-4 flex flex-col gap-4">
-          {visiblePosts.map((post) => (
+          {posts.map((post) => (
             <PostCard key={post.postId} post={post} onChanged={reloadFeed} onOpenDetail={setSelectedPostId} />
           ))}
         </section>
-        {!loading && !error && visiblePosts.length === 0 && (
+        {!loading && !error && posts.length === 0 && (
           <div className="py-16 text-center text-sm font-semibold text-gray-400">{t("noFeedPosts")}</div>
         )}
         {error && (
