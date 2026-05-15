@@ -45,6 +45,7 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
   const commentsScrollRef = useRef(null);
   const commentsSentinelRef = useRef(null);
   const captionRef = useRef(null);
+  const modalScrollRef = useRef(null);
   const menuRefs = useRef([]);
   const registerMenuRef = (element) => {
     if (element && !menuRefs.current.includes(element)) menuRefs.current.push(element);
@@ -108,17 +109,27 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
   useEffect(() => {
     const sentinel = commentsSentinelRef.current;
     if (!sentinel || !commentsHasNext) return undefined;
+    const desktopDetailLayout = window.matchMedia("(min-width: 1280px)").matches;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) loadNextComments();
       },
-      { root: commentsScrollRef.current, rootMargin: "120px" },
+      { root: desktopDetailLayout ? commentsScrollRef.current : modalScrollRef.current, rootMargin: "120px" },
     );
 
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [commentsHasNext, commentsLoading, commentPage]);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -383,19 +394,32 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
     </header>
   );
 
+  const handleMediaWheel = (event) => {
+    if (!window.matchMedia("(min-width: 1280px)").matches) return;
+    const scrollElement = commentsScrollRef.current;
+    if (!scrollElement || scrollElement.scrollHeight <= scrollElement.clientHeight) return;
+
+    event.preventDefault();
+    scrollElement.scrollTop += event.deltaY;
+  };
+
   return (
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/65 p-4 backdrop-blur-[1px]" onMouseDown={onClose}>
       <article
-        className="grid h-[min(780px,92vh)] w-full max-w-[1120px] overflow-hidden rounded-xl bg-white shadow-2xl dark:bg-black md:grid-cols-[minmax(0,1fr)_390px]"
+        ref={modalScrollRef}
+        className="grid h-[min(860px,92vh)] w-full max-w-[1364px] grid-rows-[auto_auto_minmax(0,1fr)] overflow-y-auto rounded-xl bg-white shadow-2xl dark:bg-black xl:grid-cols-[minmax(0,1fr)_390px] xl:grid-rows-none xl:overflow-hidden"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        {postHeader("flex md:hidden")}
-        <div className="relative flex min-h-0 overflow-hidden bg-white dark:bg-zinc-950">
+        {postHeader("flex xl:hidden")}
+        <div
+          className="relative flex h-[min(62vw,54vh)] min-h-[220px] overflow-hidden bg-gray-50 dark:bg-zinc-950 xl:h-full xl:min-h-0"
+          onWheel={handleMediaWheel}
+        >
           {showPostContent ? (
             <>
               <div className="flex h-full w-full transition-transform duration-300" style={{ transform: `translateX(-${currentMedia * 100}%)` }}>
                 {post.media.map((media) => (
-                  <img key={media.mediaId} src={media.url} alt="" className="h-full w-full shrink-0 object-cover" />
+                  <img key={media.mediaId} src={media.url} alt="" className="h-full w-full shrink-0 object-contain" />
                 ))}
               </div>
               {currentMedia > 0 && (
@@ -424,10 +448,10 @@ export function PostDetailModal({ postId, onClose, onChanged, onEdit }) {
           )}
         </div>
 
-        <div className="flex min-h-0 flex-col border-l border-gray-200 dark:border-gray-800">
-          {postHeader("hidden md:flex")}
+        <div className="flex min-h-0 flex-col border-gray-200 dark:border-gray-800 xl:border-l">
+          {postHeader("hidden xl:flex")}
 
-          <div ref={commentsScrollRef} className="flex-1 overflow-y-auto px-4 py-4">
+          <div ref={commentsScrollRef} className="px-4 py-4 xl:flex-1 xl:overflow-y-auto">
             {showPostContent ? (
               <>
                 <div className="mb-5 text-sm">
