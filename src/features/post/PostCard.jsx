@@ -3,7 +3,7 @@ import { Bookmark, ChevronLeft, ChevronRight, Heart, Loader2, MessageCircle, Mor
 import { Link } from "react-router-dom";
 import { getPreferences } from "../../api/preferencesApi.js";
 import { deletePost, likePost, savePost, translatePostCaption, unlikePost, unsavePost } from "../../api/postsApi.js";
-import { HiddenTextBlock } from "../../components/content/HiddenTextBlock.jsx";
+import { HiddenContentNotice } from "../../components/content/HiddenTextBlock.jsx";
 import { useLanguage } from "../../hooks/useLanguage.js";
 import { ConfirmDialog } from "../../components/modals/ConfirmDialog.jsx";
 import { PostEditModal } from "../../components/modals/PostEditModal.jsx";
@@ -28,12 +28,14 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
   const [actionError, setActionError] = useState("");
   const [hiddenWordsEnabled, setHiddenWordsEnabled] = useState(false);
   const [hiddenWords, setHiddenWords] = useState([]);
+  const [contentRevealed, setContentRevealed] = useState(false);
   const captionRef = useRef(null);
   const menuRef = useRef(null);
 
   const mediaCount = post.media.length;
   const captionText = translated ? translatedCaption : post.caption;
-  const captionHidden = hiddenWordsEnabled && containsHiddenWord(captionText, hiddenWords);
+  const contentHidden = hiddenWordsEnabled && !post.isOwner && containsHiddenWord(post.caption, hiddenWords);
+  const showPostContent = !contentHidden || contentRevealed;
   const canManagePost = post.isOwner;
   const postTimeText = formatRelativeTime(post.createdAt);
 
@@ -48,6 +50,7 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
     setTranslated(false);
     setTranslatedCaption(post.translatedCaption || "");
     setTranslatingCaption(false);
+    setContentRevealed(false);
   }, [post.postId, post.caption, post.media, post.translatedCaption]);
 
   useEffect(() => {
@@ -65,6 +68,7 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
       getPreferences().then((preferences) => {
         setHiddenWordsEnabled(Boolean(preferences.hiddenWordsEnabled));
         setHiddenWords(preferences.hiddenWords || []);
+        setContentRevealed(false);
       });
     };
 
@@ -195,14 +199,25 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
           </div>
         )}
       </header>
-      <div className="relative aspect-square overflow-hidden bg-gray-50 dark:bg-gray-900" onClick={() => onOpenDetail?.(post.postId)} onDoubleClick={toggleLike}>
-        <div className="flex h-full w-full transition-transform duration-300" style={{ transform: `translateX(-${currentMedia * 100}%)` }}>
-          {post.media.map((media) => (
-            <img key={media.mediaId} src={media.url} alt="" className="h-full w-full shrink-0 object-cover" />
-          ))}
-        </div>
-        {currentMedia > 0 && <button onClick={(event) => { event.stopPropagation(); setCurrentMedia((value) => value - 1); }} className="absolute left-2 top-1/2 rounded-full bg-white/70 p-1"><ChevronLeft className="h-5 w-5 text-black" /></button>}
-        {currentMedia < mediaCount - 1 && <button onClick={(event) => { event.stopPropagation(); setCurrentMedia((value) => value + 1); }} className="absolute right-2 top-1/2 rounded-full bg-white/70 p-1"><ChevronRight className="h-5 w-5 text-black" /></button>}
+      <div className="relative aspect-square overflow-hidden bg-gray-50 dark:bg-gray-900" onClick={() => showPostContent && onOpenDetail?.(post.postId)} onDoubleClick={showPostContent ? toggleLike : undefined}>
+        {showPostContent ? (
+          <>
+            <div className="flex h-full w-full transition-transform duration-300" style={{ transform: `translateX(-${currentMedia * 100}%)` }}>
+              {post.media.map((media) => (
+                <img key={media.mediaId} src={media.url} alt="" className="h-full w-full shrink-0 object-cover" />
+              ))}
+            </div>
+            {currentMedia > 0 && <button onClick={(event) => { event.stopPropagation(); setCurrentMedia((value) => value - 1); }} className="absolute left-2 top-1/2 rounded-full bg-white/70 p-1"><ChevronLeft className="h-5 w-5 text-black" /></button>}
+            {currentMedia < mediaCount - 1 && <button onClick={(event) => { event.stopPropagation(); setCurrentMedia((value) => value + 1); }} className="absolute right-2 top-1/2 rounded-full bg-white/70 p-1"><ChevronRight className="h-5 w-5 text-black" /></button>}
+          </>
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-gray-100 p-5 dark:bg-zinc-950">
+            <HiddenContentNotice
+              className="max-w-[360px] bg-white/95 shadow-sm dark:bg-zinc-900/95"
+              onReveal={() => setContentRevealed(true)}
+            />
+          </div>
+        )}
       </div>
       <div className="flex flex-col gap-3 p-4">
         <div className="flex items-center justify-between">
@@ -221,19 +236,8 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
           </button>
         </div>
         {actionError ? <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-500 dark:bg-red-950/30">{actionError}</p> : null}
-        <div className="text-sm">
-          {captionHidden ? (
-            <HiddenTextBlock>
-              <PostCaptionText
-                ref={captionRef}
-                caption={captionText || ""}
-                authorName={post.author.username}
-                collapsed={!expanded}
-                maxHeight={`${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em`}
-                className="leading-relaxed"
-              />
-            </HiddenTextBlock>
-          ) : (
+        {showPostContent && (
+          <div className="text-sm">
             <PostCaptionText
               ref={captionRef}
               caption={captionText || ""}
@@ -242,17 +246,19 @@ export function PostCard({ post, onChanged, onOpenDetail }) {
               maxHeight={`${CAPTION_PREVIEW_LINES * CAPTION_LINE_HEIGHT}em`}
               className="leading-relaxed"
             />
-          )}
-          {!captionHidden && captionNeedsPreview && (
-            <button onClick={() => setExpanded((value) => !value)} className="mt-1 font-semibold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
-              {expanded ? t("close") : t("more")}
-            </button>
-          )}
-        </div>
-        <button onClick={toggleCaptionTranslation} disabled={translatingCaption} className="flex w-fit items-center gap-1 text-[10px] font-bold uppercase text-gray-500 disabled:text-gray-300">
-          {translatingCaption && <Loader2 className="h-3 w-3 animate-spin" />}
-          {translatingCaption ? t("translating") : translated ? t("seeOriginal") : t("seeTranslation")}
-        </button>
+            {captionNeedsPreview && (
+              <button onClick={() => setExpanded((value) => !value)} className="mt-1 font-semibold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                {expanded ? t("close") : t("more")}
+              </button>
+            )}
+          </div>
+        )}
+        {showPostContent && (
+          <button onClick={toggleCaptionTranslation} disabled={translatingCaption} className="flex w-fit items-center gap-1 text-[10px] font-bold uppercase text-gray-500 disabled:text-gray-300">
+            {translatingCaption && <Loader2 className="h-3 w-3 animate-spin" />}
+            {translatingCaption ? t("translating") : translated ? t("seeOriginal") : t("seeTranslation")}
+          </button>
+        )}
       </div>
       {deletingPost && (
         <ConfirmDialog

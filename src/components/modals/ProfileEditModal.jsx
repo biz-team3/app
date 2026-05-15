@@ -7,7 +7,7 @@ import { useLanguage } from "../../hooks/useLanguage.js";
 import { IMAGE_FILE_ACCEPT, validateImageFiles } from "../../utils/mediaValidation.js";
 
 export function ProfileEditModal({ isOpen, onClose, onSaved }) {
-  const { t, language, setLanguage } = useLanguage();
+  const { t } = useLanguage();
   const { refreshMe } = useAuth();
   const fileInputRef = useRef(null);
   const [profile, setProfile] = useState(null);
@@ -27,17 +27,21 @@ export function ProfileEditModal({ isOpen, onClose, onSaved }) {
     setSaved(false);
     setSaving(false);
     setError("");
-    getMyProfile().then((result) => {
-      setProfile(result);
-      setForm({
-        username: result.username,
-        name: result.name,
-        bio: result.bio,
-        website: result.website || "",
-        accountVisibility: result.accountVisibility || "PUBLIC",
+    getMyProfile()
+      .then((result) => {
+        setProfile(result);
+        setForm({
+          username: result.username,
+          name: result.name,
+          bio: result.bio,
+          website: result.website || "",
+          accountVisibility: result.accountVisibility || "PUBLIC",
+        });
+      })
+      .catch(() => {
+        setError(t("profileLoadFailed"));
       });
-    });
-  }, [isOpen]);
+  }, [isOpen, t]);
 
   useEffect(() => {
     return () => {
@@ -123,13 +127,6 @@ export function ProfileEditModal({ isOpen, onClose, onSaved }) {
           <div />
           <h2 className="text-center text-sm font-bold">{t("editProfile")}</h2>
           <div className="flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setLanguage(language === "ko" ? "en" : "ko")}
-              className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-bold hover:bg-gray-200 dark:bg-gray-900 dark:hover:bg-gray-800"
-            >
-              {language === "ko" ? "EN" : "KO"}
-            </button>
             <button type="button" onClick={handleClose} className="rounded-full p-1 hover:bg-gray-100 dark:hover:bg-gray-900">
               <X className="h-5 w-5" />
             </button>
@@ -137,7 +134,9 @@ export function ProfileEditModal({ isOpen, onClose, onSaved }) {
         </header>
 
         {!profile ? (
-          <div className="flex min-h-[360px] items-center justify-center text-sm font-semibold text-gray-400">{t("loadingPost")}</div>
+          <div className={`flex min-h-[360px] items-center justify-center text-sm font-semibold ${error ? "text-red-500" : "text-gray-400"}`}>
+            {error || t("loadingPosts")}
+          </div>
         ) : (
           <form onSubmit={handleSubmit} className="min-h-0 overflow-y-auto px-5 py-5">
             <div className="space-y-4">
