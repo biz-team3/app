@@ -22,6 +22,7 @@ export const CONTENT_SAFETY_WORDS = [
   { word: "클릭해주세요", category: "spam", level: "soft" },
   { word: "바로가기", category: "spam", level: "soft" },
   { word: "click here", category: "spam", level: "soft" },
+  { word: "clickhere", category: "spam", level: "soft" },
   { word: "buy now", category: "spam", level: "soft" },
   { word: "limited offer", category: "spam", level: "soft" },
   { word: "act now", category: "spam", level: "soft" },
@@ -229,5 +230,6 @@ export function evaluateContentSafety(text = "", entries = CONTENT_SAFETY_WORDS)
 }
 
 export function containsHiddenWord(text = "", words = DEFAULT_HIDDEN_WORDS) {
-  return findContentSafetyMatches(text, words).length > 0;
+  const entries = Array.isArray(words) && words.length > 0 ? words : DEFAULT_HIDDEN_WORDS;
+  return findContentSafetyMatches(text, entries).length > 0;
 }
